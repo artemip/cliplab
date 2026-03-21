@@ -42,7 +42,7 @@ export interface FilterDefinition {
 const gain: FilterDefinition = {
   id: "gain",
   name: "Gain",
-  description: "Adjust the volume level",
+  description: "Boost or soften your sound",
   params: [
     { key: "level", label: "Level", unit: "%", min: 0, max: 300, step: 1, default: 100 },
   ],
@@ -56,7 +56,7 @@ const gain: FilterDefinition = {
 const lowPass: FilterDefinition = {
   id: "lowpass",
   name: "Low-Pass",
-  description: "Cut high frequencies — warmer, darker tone",
+  description: "Warmer, darker — like hearing through a wall",
   params: [
     { key: "frequency", label: "Cutoff", unit: "Hz", min: 200, max: 8000, step: 10, default: 2000, scale: "log" },
     { key: "q", label: "Resonance", min: 0.1, max: 20, step: 0.1, default: 1 },
@@ -73,7 +73,7 @@ const lowPass: FilterDefinition = {
 const highPass: FilterDefinition = {
   id: "highpass",
   name: "High-Pass",
-  description: "Cut low frequencies — cleaner, thinner tone",
+  description: "Cleaner, thinner — cuts the rumble",
   params: [
     { key: "frequency", label: "Cutoff", unit: "Hz", min: 200, max: 8000, step: 10, default: 500, scale: "log" },
     { key: "q", label: "Resonance", min: 0.1, max: 20, step: 0.1, default: 1 },
@@ -90,7 +90,7 @@ const highPass: FilterDefinition = {
 const compressor: FilterDefinition = {
   id: "compressor",
   name: "Compressor",
-  description: "Even out loud and quiet parts",
+  description: "Thicken and tighten your sound",
   params: [
     { key: "threshold", label: "Threshold", unit: "dB", min: -60, max: 0, step: 1, default: -24 },
     { key: "ratio", label: "Ratio", unit: ":1", min: 1, max: 20, step: 0.5, default: 12 },
@@ -110,7 +110,7 @@ const compressor: FilterDefinition = {
 const delay: FilterDefinition = {
   id: "delay",
   name: "Echo / Delay",
-  description: "Add repeating echoes",
+  description: "Add space and rhythm with echoes",
   params: [
     { key: "time", label: "Delay Time", unit: "s", min: 0.05, max: 1, step: 0.01, default: 0.3 },
     { key: "feedback", label: "Feedback", unit: "%", min: 0, max: 90, step: 1, default: 40 },
