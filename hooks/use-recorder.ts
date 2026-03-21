@@ -42,10 +42,16 @@ export function useRecorder(): UseRecorderReturn {
   const startTimeRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Cleanup on unmount
+  // Cleanup on unmount — stop recorder, timer, and stream tracks
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== "inactive"
+      ) {
+        mediaRecorderRef.current.stop();
+      }
       if (stream) {
         for (const track of stream.getTracks()) track.stop();
       }
@@ -74,6 +80,8 @@ export function useRecorder(): UseRecorderReturn {
 
   const startRecording = useCallback(() => {
     if (!stream) return;
+    // Guard against double-call (rapid Space taps)
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") return;
 
     if (timerRef.current) clearInterval(timerRef.current);
     chunksRef.current = [];
