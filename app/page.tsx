@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { Mic } from "lucide-react";
-import { cn } from "@/lib/cn";
-
-const accentButtonClass =
-  "inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] min-h-[44px] px-4 py-3 text-sm font-medium text-[var(--accent-foreground)] transition-colors hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default function FeedPage() {
   return (
@@ -15,7 +13,10 @@ export default function FeedPage() {
             Record, filter, and share audio clips
           </p>
         </div>
-        <Link href="/record" className={accentButtonClass}>
+        <Link
+          href="/record"
+          className={cn(buttonVariants({ variant: "accent", size: "lg" }))}
+        >
           <Mic className="h-4 w-4" aria-hidden="true" />
           Record
         </Link>
@@ -31,7 +32,13 @@ export default function FeedPage() {
           Record your first audio clip, apply filters, and share it with the
           world.
         </p>
-        <Link href="/record" className={cn("mt-6", accentButtonClass)}>
+        <Link
+          href="/record"
+          className={cn(
+            "mt-6",
+            buttonVariants({ variant: "accent", size: "lg" })
+          )}
+        >
           <Mic className="h-4 w-4" aria-hidden="true" />
           Record your first clip
         </Link>
