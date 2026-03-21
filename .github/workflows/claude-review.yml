@@ -2,23 +2,28 @@ name: Claude PR Review
 
 on:
   pull_request:
+    branches: [main]
     types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
   pull-requests: write
+  issues: write
   id-token: write
 
 jobs:
   arena-review:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1
+      - name: Run arena review
+        id: review
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
@@ -26,22 +31,61 @@ jobs:
 
             Review PR #${{ github.event.pull_request.number }}: "${{ github.event.pull_request.title }}"
 
-            Focus on: architecture, abstractions, end-to-end coherence, decision quality, stack fluency (NextJS + Tailwind + ShadCN + Hono + Vitest).
+            IMPORTANT: Do NOT use `gh` CLI, WebFetch, or any network calls. All code is available locally. Use `git diff origin/main...HEAD` to see changes and read files directly.
 
-            Read CLAUDE.md and DECISIONS.md for project context.
-            Read the changed files. Rate X/10. Be specific, cite files and lines.
+            Read CLAUDE.md and DECISIONS.md for project context. Read the changed files. Rate X/10. Be specific, cite files and lines.
+
+            End your review with a clear verdict: "**Rating: X/10**" and whether it passes the 9/10 bar.
 
             This is a 4-8 hour take-home demo. Don't flag missing infra (auth, S3, Postgres, CI/CD). DO hold the demo experience to the highest bar.
+
+      - name: Post review comment
+        if: always() && steps.review.outputs.execution_file != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const execFile = '${{ steps.review.outputs.execution_file }}';
+            if (!fs.existsSync(execFile)) return;
+
+            const data = JSON.parse(fs.readFileSync(execFile, 'utf8'));
+            let reviewText = '';
+            if (Array.isArray(data)) {
+              const turns = data.filter(t => t.type === 'assistant' && t.message);
+              const last = turns[turns.length - 1];
+              if (last?.message?.content) {
+                reviewText = last.message.content.filter(b => b.type === 'text').map(b => b.text).join('\n\n');
+              }
+            }
+            if (!reviewText) return;
+            if (reviewText.length > 60000) reviewText = reviewText.substring(0, 60000) + '\n\n...(truncated)';
+
+            const marker = '<!-- arena-review -->';
+            const sha = context.payload.pull_request.head.sha;
+            const body = `${marker}\n### 🎯 Arena Review — Wei-Lin Chiang (${sha.substring(0, 7)})\n\n${reviewText}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
+            }
 
   user-review:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1
+      - name: Run user review
+        id: review
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
@@ -49,21 +93,61 @@ jobs:
 
             Review PR #${{ github.event.pull_request.number }}: "${{ github.event.pull_request.title }}"
 
-            Focus on: UX flow, discoverability, friction points, taste, delight, the 60-second test.
+            IMPORTANT: Do NOT use `gh` CLI, WebFetch, or any network calls. All code is available locally. Use `git diff origin/main...HEAD` to see changes and read files directly.
 
             Read CLAUDE.md for context. Rate X/10. Be specific and opinionated.
 
+            End your review with a clear verdict: "**Rating: X/10**" and whether it passes the 9/10 bar.
+
             This is a 4-8 hour demo. Don't ask for infra features. DO hold the experience to the highest bar.
+
+      - name: Post review comment
+        if: always() && steps.review.outputs.execution_file != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const execFile = '${{ steps.review.outputs.execution_file }}';
+            if (!fs.existsSync(execFile)) return;
+
+            const data = JSON.parse(fs.readFileSync(execFile, 'utf8'));
+            let reviewText = '';
+            if (Array.isArray(data)) {
+              const turns = data.filter(t => t.type === 'assistant' && t.message);
+              const last = turns[turns.length - 1];
+              if (last?.message?.content) {
+                reviewText = last.message.content.filter(b => b.type === 'text').map(b => b.text).join('\n\n');
+              }
+            }
+            if (!reviewText) return;
+            if (reviewText.length > 60000) reviewText = reviewText.substring(0, 60000) + '\n\n...(truncated)';
+
+            const marker = '<!-- user-review -->';
+            const sha = context.payload.pull_request.head.sha;
+            const body = `${marker}\n### 🎧 User Review — Alex Torres (${sha.substring(0, 7)})\n\n${reviewText}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
+            }
 
   design-review:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1
+      - name: Run design review
+        id: review
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
@@ -71,19 +155,59 @@ jobs:
 
             Review PR #${{ github.event.pull_request.number }}: "${{ github.event.pull_request.title }}"
 
-            Focus on: token compliance (check globals.css), interaction states (loading/empty/data/error), accessibility, responsive behavior, signs of taste.
+            IMPORTANT: Do NOT use `gh` CLI, WebFetch, or any network calls. All code is available locally. Use `git diff origin/main...HEAD` to see changes and read files directly.
 
-            Rate X/10. Cite file paths and line numbers. Be precise.
+            Focus on: token compliance (check globals.css), interaction states, accessibility, responsive behavior, signs of taste.
+
+            End your review with a clear verdict: "**Rating: X/10**" and whether it passes the 9/10 bar.
+
+      - name: Post review comment
+        if: always() && steps.review.outputs.execution_file != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const execFile = '${{ steps.review.outputs.execution_file }}';
+            if (!fs.existsSync(execFile)) return;
+
+            const data = JSON.parse(fs.readFileSync(execFile, 'utf8'));
+            let reviewText = '';
+            if (Array.isArray(data)) {
+              const turns = data.filter(t => t.type === 'assistant' && t.message);
+              const last = turns[turns.length - 1];
+              if (last?.message?.content) {
+                reviewText = last.message.content.filter(b => b.type === 'text').map(b => b.text).join('\n\n');
+              }
+            }
+            if (!reviewText) return;
+            if (reviewText.length > 60000) reviewText = reviewText.substring(0, 60000) + '\n\n...(truncated)';
+
+            const marker = '<!-- design-review -->';
+            const sha = context.payload.pull_request.head.sha;
+            const body = `${marker}\n### 🎨 Design Review (${sha.substring(0, 7)})\n\n${reviewText}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
+            }
 
   code-quality:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1
+      - name: Run code quality review
+        id: review
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
@@ -91,6 +215,43 @@ jobs:
 
             Review PR #${{ github.event.pull_request.number }}: "${{ github.event.pull_request.title }}"
 
-            Focus on: unnecessary complexity, duplication, dead code, missed shared utilities, premature abstractions.
+            IMPORTANT: Do NOT use `gh` CLI, WebFetch, or any network calls. All code is available locally. Use `git diff origin/main...HEAD` to see changes and read files directly.
 
             Read CLAUDE.md for conventions. Rate X/10. Cite file paths and line numbers.
+
+            End your review with a clear verdict: "**Rating: X/10**" and whether it passes the 9/10 bar.
+
+      - name: Post review comment
+        if: always() && steps.review.outputs.execution_file != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const execFile = '${{ steps.review.outputs.execution_file }}';
+            if (!fs.existsSync(execFile)) return;
+
+            const data = JSON.parse(fs.readFileSync(execFile, 'utf8'));
+            let reviewText = '';
+            if (Array.isArray(data)) {
+              const turns = data.filter(t => t.type === 'assistant' && t.message);
+              const last = turns[turns.length - 1];
+              if (last?.message?.content) {
+                reviewText = last.message.content.filter(b => b.type === 'text').map(b => b.text).join('\n\n');
+              }
+            }
+            if (!reviewText) return;
+            if (reviewText.length > 60000) reviewText = reviewText.substring(0, 60000) + '\n\n...(truncated)';
+
+            const marker = '<!-- code-quality -->';
+            const sha = context.payload.pull_request.head.sha;
+            const body = `${marker}\n### 🔧 Code Quality Review (${sha.substring(0, 7)})\n\n${reviewText}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
+            }
