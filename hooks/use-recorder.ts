@@ -58,16 +58,25 @@ export function useRecorder(): UseRecorderReturn {
     };
   }, [stream]);
 
-  const requestMic = useCallback(async () => {
+  const autoStartRef = useRef(false);
+
+  const requestMic = useCallback(async (autoStart = true) => {
     setStatus("requesting");
     setError(null);
+    autoStartRef.current = autoStart;
 
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
       });
       setStream(mediaStream);
-      setStatus("ready");
+      if (autoStartRef.current) {
+        // Auto-start recording immediately after mic granted — one tap to record
+        setStatus("recording");
+        startRecordingWithStream(mediaStream);
+      } else {
+        setStatus("ready");
+      }
     } catch (err) {
       const message =
         err instanceof DOMException && err.name === "NotAllowedError"
@@ -78,19 +87,16 @@ export function useRecorder(): UseRecorderReturn {
     }
   }, []);
 
-  const startRecording = useCallback(() => {
-    if (!stream) return;
-    // Guard against double-call (rapid Space taps)
+  // Shared recording logic — used by both requestMic (auto-start) and startRecording
+  function startRecordingWithStream(mediaStream: MediaStream) {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") return;
-
     if (timerRef.current) clearInterval(timerRef.current);
     chunksRef.current = [];
 
-    // Pick a supported MIME type (varies by browser)
     const mimeType = ["audio/webm", "audio/mp4", "audio/ogg"].find((t) =>
       MediaRecorder.isTypeSupported(t)
     );
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    const recorder = new MediaRecorder(mediaStream, mimeType ? { mimeType } : {});
     mediaRecorderRef.current = recorder;
 
     recorder.ondataavailable = (e) => {
@@ -115,10 +121,14 @@ export function useRecorder(): UseRecorderReturn {
     setBlob(null);
     setStatus("recording");
 
-    // Timer updates every 100ms
     timerRef.current = setInterval(() => {
       setDuration((Date.now() - startTimeRef.current) / 1000);
     }, 100);
+  }
+
+  const startRecording = useCallback(() => {
+    if (!stream) return;
+    startRecordingWithStream(stream);
   }, [stream]);
 
   const stopRecording = useCallback(() => {

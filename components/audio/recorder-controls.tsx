@@ -59,7 +59,7 @@ export function RecorderControls({
         <p className="text-sm text-[var(--text-secondary)]">
           {status === "requesting"
             ? "Waiting for microphone access..."
-            : "Tap to start recording"}
+            : "Tap to record"}
         </p>
       </div>
     );
