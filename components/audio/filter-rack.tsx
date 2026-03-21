@@ -12,6 +12,7 @@ interface FilterRackProps {
   filters: FilterState[];
   presets: FilterPreset[];
   bypassed: boolean;
+  activePreset: string | null;
   onToggleFilter: (id: string) => void;
   onUpdateParam: (id: string, key: string, value: number) => void;
   onResetFilter: (id: string) => void;
@@ -26,6 +27,7 @@ export function FilterRack({
   filters,
   presets,
   bypassed,
+  activePreset,
   onToggleFilter,
   onUpdateParam,
   onResetFilter,
@@ -49,20 +51,26 @@ export function FilterRack({
     <div className="space-y-3">
       {/* Presets row */}
       <div className="flex items-center gap-2">
-        {presets.map((preset) => (
-          <button
-            key={preset.id}
-            onClick={() => onApplyPreset(preset.id)}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-medium",
-              "bg-[var(--accent-surface)] text-[var(--accent)]",
-              "transition-all hover:bg-[var(--accent-border)] active:scale-95",
-              "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-            )}
-          >
-            {preset.name}
-          </button>
-        ))}
+        {presets.map((preset) => {
+          const isActive = activePreset === preset.id;
+          return (
+            <button
+              key={preset.id}
+              onClick={() => onApplyPreset(preset.id)}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-xs font-medium min-h-[36px]",
+                "transition-all active:scale-95",
+                "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
+                isActive
+                  ? "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm"
+                  : "bg-[var(--accent-surface)] text-[var(--accent)] hover:bg-[var(--accent-border)]"
+              )}
+              aria-pressed={isActive}
+            >
+              {preset.name}
+            </button>
+          );
+        })}
 
         {/* Bypass all */}
         <button
@@ -161,6 +169,11 @@ export function FilterRack({
                         }}
                         aria-label={`${filter.definition.name} ${param.label}`}
                       />
+                      {param.hint && (
+                        <p className="text-[10px] text-[var(--text-tertiary)]">
+                          {param.hint}
+                        </p>
+                      )}
                     </div>
                   ))}
 

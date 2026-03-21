@@ -39,6 +39,8 @@ export interface UseAudioEngineReturn {
   analyserData: Float32Array | null;
   /** Available presets */
   presets: FilterPreset[];
+  /** Currently active preset (null if manually configured) */
+  activePreset: string | null;
 
   // Actions
   toggleFilter: (id: string) => void;
@@ -80,6 +82,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [analyserData, setAnalyserData] = useState<Float32Array | null>(null);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
 
   // Refs for values needed in callbacks — synced via effect
   const filtersRef = useRef(filters);
@@ -150,6 +153,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   // ---------------------------------------------------------------------------
 
   const toggleFilter = useCallback((id: string) => {
+    setActivePreset(null); // Manual change clears preset
     setFilters((prev) => {
       const next = prev.map((f) =>
         f.definition.id === id ? { ...f, enabled: !f.enabled } : f
@@ -173,6 +177,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   }, []);
 
   const updateParam = useCallback((id: string, key: string, value: number) => {
+    setActivePreset(null);
     setFilters((prev) => {
       const next = prev.map((f) =>
         f.definition.id === id
@@ -185,6 +190,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   }, []);
 
   const resetFilter = useCallback((id: string) => {
+    setActivePreset(null);
     setFilters((prev) => {
       const next = prev.map((f) =>
         f.definition.id === id
@@ -231,6 +237,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
     const preset = PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
 
+    setActivePreset(presetId);
     setFilters((prev) => {
       const next = prev.map((f) => {
         const presetParams = preset.filters[f.definition.id];
@@ -362,6 +369,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
     duration,
     analyserData,
     presets: PRESETS,
+    activePreset,
     toggleFilter,
     updateParam,
     resetFilter,

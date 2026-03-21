@@ -177,6 +177,7 @@ export default function RecordPage() {
             filters={engine.filters}
             presets={engine.presets}
             bypassed={engine.bypassed}
+            activePreset={engine.activePreset}
             onToggleFilter={engine.toggleFilter}
             onUpdateParam={engine.updateParam}
             onResetFilter={engine.resetFilter}

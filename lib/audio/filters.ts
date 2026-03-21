@@ -14,6 +14,8 @@ export interface FilterParam {
   key: string;
   label: string;
   unit?: string;
+  /** Short hint shown below the slider — helps beginners understand the param */
+  hint?: string;
   min: number;
   max: number;
   step: number;
@@ -47,7 +49,7 @@ const gain: FilterDefinition = {
   name: "Gain",
   description: "Boost or soften your sound",
   params: [
-    { key: "level", label: "Level", unit: "%", min: 0, max: 300, step: 1, default: 100 },
+    { key: "level", label: "Level", unit: "%", hint: "100% = normal, higher = louder/distorted", min: 0, max: 500, step: 1, default: 100 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createGain();
@@ -61,8 +63,8 @@ const lowPass: FilterDefinition = {
   name: "Low-Pass",
   description: "Warmer, darker — like hearing through a wall",
   params: [
-    { key: "frequency", label: "Cutoff", unit: "Hz", min: 200, max: 8000, step: 10, default: 2000, scale: "log" },
-    { key: "q", label: "Resonance", min: 0.1, max: 20, step: 0.1, default: 1 },
+    { key: "frequency", label: "Cutoff", unit: "Hz", hint: "Lower = darker, muffled", min: 200, max: 8000, step: 10, default: 2000, scale: "log" },
+    { key: "q", label: "Resonance", hint: "Higher = more pronounced at cutoff", min: 0.1, max: 20, step: 0.1, default: 1 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createBiquadFilter();
@@ -78,8 +80,8 @@ const highPass: FilterDefinition = {
   name: "High-Pass",
   description: "Cleaner, thinner — cuts the rumble",
   params: [
-    { key: "frequency", label: "Cutoff", unit: "Hz", min: 200, max: 8000, step: 10, default: 500, scale: "log" },
-    { key: "q", label: "Resonance", min: 0.1, max: 20, step: 0.1, default: 1 },
+    { key: "frequency", label: "Cutoff", unit: "Hz", hint: "Higher = thinner, cleaner", min: 200, max: 8000, step: 10, default: 500, scale: "log" },
+    { key: "q", label: "Resonance", hint: "Higher = more pronounced at cutoff", min: 0.1, max: 20, step: 0.1, default: 1 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createBiquadFilter();
@@ -95,10 +97,10 @@ const compressor: FilterDefinition = {
   name: "Compressor",
   description: "Thicken and tighten your sound",
   params: [
-    { key: "threshold", label: "Threshold", unit: "dB", min: -60, max: 0, step: 1, default: -24 },
-    { key: "ratio", label: "Ratio", unit: ":1", min: 1, max: 20, step: 0.5, default: 12 },
-    { key: "attack", label: "Attack", unit: "s", min: 0, max: 1, step: 0.001, default: 0.003 },
-    { key: "release", label: "Release", unit: "s", min: 0, max: 1, step: 0.01, default: 0.25 },
+    { key: "threshold", label: "Threshold", unit: "dB", hint: "Louder signals above this get compressed", min: -60, max: 0, step: 1, default: -24 },
+    { key: "ratio", label: "Ratio", unit: ":1", hint: "How much to compress — higher = flatter", min: 1, max: 20, step: 0.5, default: 12 },
+    { key: "attack", label: "Attack", unit: "s", hint: "How fast compression kicks in", min: 0, max: 1, step: 0.001, default: 0.003 },
+    { key: "release", label: "Release", unit: "s", hint: "How fast compression lets go", min: 0, max: 1, step: 0.01, default: 0.25 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createDynamicsCompressor();
@@ -115,9 +117,9 @@ const delay: FilterDefinition = {
   name: "Echo / Delay",
   description: "Add space and rhythm with echoes",
   params: [
-    { key: "time", label: "Delay Time", unit: "s", min: 0.05, max: 1, step: 0.01, default: 0.3 },
-    { key: "feedback", label: "Feedback", unit: "%", min: 0, max: 90, step: 1, default: 40 },
-    { key: "mix", label: "Wet/Dry", unit: "%", min: 0, max: 100, step: 1, default: 50 },
+    { key: "time", label: "Delay Time", unit: "s", hint: "Time between echoes", min: 0.05, max: 1, step: 0.01, default: 0.3 },
+    { key: "feedback", label: "Feedback", unit: "%", hint: "How many times echoes repeat", min: 0, max: 90, step: 1, default: 40 },
+    { key: "mix", label: "Wet/Dry", unit: "%", hint: "0% = dry, 100% = full echo", min: 0, max: 100, step: 1, default: 50 },
   ],
   createNodes(ctx, params) {
     const time = params.time ?? 0.3;
@@ -163,8 +165,8 @@ const reverb: FilterDefinition = {
   name: "Reverb",
   description: "Add depth and space — like singing in a room",
   params: [
-    { key: "decay", label: "Decay", unit: "s", min: 0.1, max: 5, step: 0.1, default: 1.5 },
-    { key: "mix", label: "Wet/Dry", unit: "%", min: 0, max: 100, step: 1, default: 40 },
+    { key: "decay", label: "Decay", unit: "s", hint: "Longer = bigger room", min: 0.1, max: 5, step: 0.1, default: 1.5 },
+    { key: "mix", label: "Wet/Dry", unit: "%", hint: "0% = dry, 100% = full reverb", min: 0, max: 100, step: 1, default: 40 },
   ],
   createNodes(ctx, params) {
     const decay = params.decay ?? 1.5;
@@ -270,6 +272,35 @@ export const PRESETS: FilterPreset[] = [
     filters: {
       reverb: { decay: 4, mix: 60 },
       delay: { time: 0.5, feedback: 50, mix: 40 },
+    },
+  },
+  {
+    id: "telephone",
+    name: "Telephone",
+    description: "Thin, tinny, retro",
+    filters: {
+      highpass: { frequency: 800, q: 1 },
+      lowpass: { frequency: 3000, q: 2 },
+      compressor: { threshold: -15, ratio: 8, attack: 0.001, release: 0.1 },
+    },
+  },
+  {
+    id: "distorted",
+    name: "Distorted",
+    description: "Cranked gain + heavy compression",
+    filters: {
+      gain: { level: 450 },
+      compressor: { threshold: -10, ratio: 20, attack: 0.001, release: 0.05 },
+    },
+  },
+  {
+    id: "underwater",
+    name: "Underwater",
+    description: "Deep, muffled, dreamy",
+    filters: {
+      lowpass: { frequency: 400, q: 5 },
+      reverb: { decay: 3, mix: 70 },
+      gain: { level: 80 },
     },
   },
 ];
