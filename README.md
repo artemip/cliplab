@@ -27,14 +27,14 @@ Next.js 15 + Tailwind v4 + shadcn/ui + Hono + Drizzle (SQLite) + Vitest — mirr
 | Command | What |
 |---------|------|
 | `pnpm dev` | Dev server |
-| `pnpm test` | Vitest (41 tests) |
+| `pnpm test` | Vitest (47 tests) |
 | `pnpm typecheck` | tsc --noEmit |
 | `pnpm lint` | ESLint |
 | `pnpm db:push` | Push schema to SQLite |
 
 ## What's Built
 
-- 5 composable audio filters (gain, low-pass, high-pass, compressor, delay)
+- 6 composable audio filters (gain, low-pass, high-pass, compressor, reverb, delay) + 3 presets
 - Audio engine with graph rebuild, offline rendering, monitor toggle
 - MediaRecorder wrapper with state machine and mic permission handling
 - WAV encoder (client) + WAV peak parser (server) with round-trip test coverage
