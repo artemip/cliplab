@@ -5,13 +5,20 @@
  * No class hierarchy, no inheritance. The engine chains them in sequence.
  */
 
+/** Max feedback level to prevent infinite loops in delay/reverb. */
+export const MAX_FEEDBACK = 0.95;
+
+export type ParamScale = "linear" | "log";
+
 export interface FilterParam {
   key: string;
   label: string;
+  unit?: string;
   min: number;
   max: number;
   step: number;
   default: number;
+  scale?: ParamScale;
 }
 
 export interface FilterDefinition {
@@ -38,13 +45,13 @@ export interface FilterDefinition {
 const gain: FilterDefinition = {
   id: "gain",
   name: "Gain",
-  description: "Adjust the volume level",
+  description: "Boost or soften your sound",
   params: [
-    { key: "level", label: "Level", min: 0, max: 3, step: 0.01, default: 1 },
+    { key: "level", label: "Level", unit: "%", min: 0, max: 300, step: 1, default: 100 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createGain();
-    node.gain.value = params.level ?? 1;
+    node.gain.value = (params.level ?? 100) / 100;
     return [node];
   },
 };
@@ -52,9 +59,9 @@ const gain: FilterDefinition = {
 const lowPass: FilterDefinition = {
   id: "lowpass",
   name: "Low-Pass",
-  description: "Cut high frequencies — warmer, darker tone",
+  description: "Warmer, darker — like hearing through a wall",
   params: [
-    { key: "frequency", label: "Cutoff", min: 200, max: 8000, step: 10, default: 2000 },
+    { key: "frequency", label: "Cutoff", unit: "Hz", min: 200, max: 8000, step: 10, default: 2000, scale: "log" },
     { key: "q", label: "Resonance", min: 0.1, max: 20, step: 0.1, default: 1 },
   ],
   createNodes(ctx, params) {
@@ -69,9 +76,9 @@ const lowPass: FilterDefinition = {
 const highPass: FilterDefinition = {
   id: "highpass",
   name: "High-Pass",
-  description: "Cut low frequencies — cleaner, thinner tone",
+  description: "Cleaner, thinner — cuts the rumble",
   params: [
-    { key: "frequency", label: "Cutoff", min: 200, max: 8000, step: 10, default: 500 },
+    { key: "frequency", label: "Cutoff", unit: "Hz", min: 200, max: 8000, step: 10, default: 500, scale: "log" },
     { key: "q", label: "Resonance", min: 0.1, max: 20, step: 0.1, default: 1 },
   ],
   createNodes(ctx, params) {
@@ -86,12 +93,12 @@ const highPass: FilterDefinition = {
 const compressor: FilterDefinition = {
   id: "compressor",
   name: "Compressor",
-  description: "Even out loud and quiet parts",
+  description: "Thicken and tighten your sound",
   params: [
-    { key: "threshold", label: "Threshold", min: -60, max: 0, step: 1, default: -24 },
-    { key: "ratio", label: "Ratio", min: 1, max: 20, step: 0.5, default: 12 },
-    { key: "attack", label: "Attack", min: 0, max: 1, step: 0.001, default: 0.003 },
-    { key: "release", label: "Release", min: 0, max: 1, step: 0.01, default: 0.25 },
+    { key: "threshold", label: "Threshold", unit: "dB", min: -60, max: 0, step: 1, default: -24 },
+    { key: "ratio", label: "Ratio", unit: ":1", min: 1, max: 20, step: 0.5, default: 12 },
+    { key: "attack", label: "Attack", unit: "s", min: 0, max: 1, step: 0.001, default: 0.003 },
+    { key: "release", label: "Release", unit: "s", min: 0, max: 1, step: 0.01, default: 0.25 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createDynamicsCompressor();
@@ -106,16 +113,16 @@ const compressor: FilterDefinition = {
 const delay: FilterDefinition = {
   id: "delay",
   name: "Echo / Delay",
-  description: "Add repeating echoes",
+  description: "Add space and rhythm with echoes",
   params: [
-    { key: "time", label: "Delay Time", min: 0.05, max: 1, step: 0.01, default: 0.3 },
-    { key: "feedback", label: "Feedback", min: 0, max: 0.9, step: 0.01, default: 0.4 },
-    { key: "mix", label: "Wet/Dry", min: 0, max: 1, step: 0.01, default: 0.5 },
+    { key: "time", label: "Delay Time", unit: "s", min: 0.05, max: 1, step: 0.01, default: 0.3 },
+    { key: "feedback", label: "Feedback", unit: "%", min: 0, max: 90, step: 1, default: 40 },
+    { key: "mix", label: "Wet/Dry", unit: "%", min: 0, max: 100, step: 1, default: 50 },
   ],
   createNodes(ctx, params) {
     const time = params.time ?? 0.3;
-    const feedback = params.feedback ?? 0.4;
-    const mix = params.mix ?? 0.5;
+    const feedback = Math.min((params.feedback ?? 40) / 100, MAX_FEEDBACK);
+    const mix = (params.mix ?? 50) / 100;
 
     // Dry path: input gain
     const dryGain = ctx.createGain();
@@ -131,13 +138,11 @@ const delay: FilterDefinition = {
     const wetGain = ctx.createGain();
     wetGain.gain.value = mix;
 
-    // Merger to combine dry + wet
     const merger = ctx.createGain();
-    merger.gain.value = 1;
 
-    // Wire up: input → dryGain → merger
-    //          input → delayNode → wetGain → merger
-    //          delayNode → feedbackGain → delayNode (feedback loop)
+    // Wire: input → dryGain → merger
+    //       input → delayNode → wetGain → merger
+    //       delayNode → feedbackGain → delayNode (feedback loop)
     dryGain.connect(merger);
     delayNode.connect(wetGain);
     wetGain.connect(merger);
@@ -146,9 +151,56 @@ const delay: FilterDefinition = {
 
     // Input splitter fans out to dry + wet paths; merger combines them.
     const inputSplitter = ctx.createGain();
-    inputSplitter.gain.value = 1;
     inputSplitter.connect(dryGain);
     inputSplitter.connect(delayNode);
+
+    return [inputSplitter, merger];
+  },
+};
+
+const reverb: FilterDefinition = {
+  id: "reverb",
+  name: "Reverb",
+  description: "Add depth and space — like singing in a room",
+  params: [
+    { key: "decay", label: "Decay", unit: "s", min: 0.1, max: 5, step: 0.1, default: 1.5 },
+    { key: "mix", label: "Wet/Dry", unit: "%", min: 0, max: 100, step: 1, default: 40 },
+  ],
+  createNodes(ctx, params) {
+    const decay = params.decay ?? 1.5;
+    const mix = (params.mix ?? 40) / 100;
+
+    // Generate impulse response: exponential decay white noise
+    const sampleRate = ctx.sampleRate;
+    const length = Math.floor(sampleRate * decay);
+    const impulse = ctx.createBuffer(2, length, sampleRate);
+
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+      }
+    }
+
+    const convolver = ctx.createConvolver();
+    convolver.buffer = impulse;
+
+    // Dry/wet mix routing (same pattern as delay)
+    const dryGain = ctx.createGain();
+    dryGain.gain.value = 1 - mix;
+
+    const wetGain = ctx.createGain();
+    wetGain.gain.value = mix;
+
+    const merger = ctx.createGain();
+
+    dryGain.connect(merger);
+    convolver.connect(wetGain);
+    wetGain.connect(merger);
+
+    const inputSplitter = ctx.createGain();
+    inputSplitter.connect(dryGain);
+    inputSplitter.connect(convolver);
 
     return [inputSplitter, merger];
   },
@@ -162,6 +214,7 @@ export const FILTER_REGISTRY: FilterDefinition[] = [
   lowPass,
   highPass,
   compressor,
+  reverb,
   delay,
 ];
 
@@ -177,3 +230,46 @@ export function getDefaultParams(
   }
   return params;
 }
+
+// ---------------------------------------------------------------------------
+// Presets — one-tap configurations for common use cases
+// ---------------------------------------------------------------------------
+
+export interface FilterPreset {
+  id: string;
+  name: string;
+  description: string;
+  /** Map of filter ID → param overrides. Filters not listed stay disabled. */
+  filters: Record<string, Record<string, number>>;
+}
+
+export const PRESETS: FilterPreset[] = [
+  {
+    id: "warm-vocal",
+    name: "Warm Vocal",
+    description: "Compression + light reverb",
+    filters: {
+      compressor: { threshold: -20, ratio: 4, attack: 0.003, release: 0.25 },
+      reverb: { decay: 1.2, mix: 25 },
+    },
+  },
+  {
+    id: "lofi-radio",
+    name: "Lo-Fi Radio",
+    description: "Muffled, compressed, boosted",
+    filters: {
+      lowpass: { frequency: 800, q: 1 },
+      compressor: { threshold: -30, ratio: 12, attack: 0.01, release: 0.25 },
+      gain: { level: 150 },
+    },
+  },
+  {
+    id: "ambient-space",
+    name: "Ambient Space",
+    description: "Long reverb + slow echoes",
+    filters: {
+      reverb: { decay: 4, mix: 60 },
+      delay: { time: 0.5, feedback: 50, mix: 40 },
+    },
+  },
+];
