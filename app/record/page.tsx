@@ -105,6 +105,8 @@ export default function RecordPage() {
 
       if (recorder.status === "recording") {
         recorder.stopRecording();
+      } else if (recorder.status === "idle") {
+        recorder.requestMic();
       } else if (recorder.status === "ready") {
         recorder.startRecording();
       } else if (recorder.status === "stopped") {
