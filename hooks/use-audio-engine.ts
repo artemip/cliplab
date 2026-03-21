@@ -9,7 +9,6 @@ import {
   type FilterPreset,
 } from "@/lib/audio/filters";
 import { AudioEngine, type ActiveFilter } from "@/lib/audio/engine";
-import { generatePeaks } from "@/lib/audio/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -82,7 +81,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const [duration, setDuration] = useState(0);
   const [analyserData, setAnalyserData] = useState<Float32Array | null>(null);
 
-  // Refs for values needed in callbacks without causing re-renders
+  // Refs for values needed in callbacks — synced via effect
   const filtersRef = useRef(filters);
   const bypassedRef = useRef(bypassed);
   const loopingRef = useRef(looping);
@@ -174,26 +173,27 @@ export function useAudioEngine(): UseAudioEngineReturn {
   }, []);
 
   const updateParam = useCallback((id: string, key: string, value: number) => {
-    setFilters((prev) =>
-      prev.map((f) =>
+    setFilters((prev) => {
+      const next = prev.map((f) =>
         f.definition.id === id
           ? { ...f, params: { ...f.params, [key]: value } }
           : f
-      )
-    );
-    // Rebuild with updated params
-    rebuildFromCurrentState();
+      );
+      rebuildWithFilters(next);
+      return next;
+    });
   }, []);
 
   const resetFilter = useCallback((id: string) => {
-    setFilters((prev) =>
-      prev.map((f) =>
+    setFilters((prev) => {
+      const next = prev.map((f) =>
         f.definition.id === id
           ? { ...f, params: getDefaultParams(f.definition) }
           : f
-      )
-    );
-    rebuildFromCurrentState();
+      );
+      rebuildWithFilters(next);
+      return next;
+    });
   }, []);
 
   const toggleBypass = useCallback(() => {
@@ -254,12 +254,15 @@ export function useAudioEngine(): UseAudioEngineReturn {
 
   const stop = useCallback(() => {
     if (sourceRef.current) {
+      const engine = engineRef.current;
+      if (engine) {
+        offsetRef.current = engine.context.currentTime - startTimeRef.current + offsetRef.current;
+      }
       try { sourceRef.current.stop(); } catch { /* already stopped */ }
       sourceRef.current = null;
     }
     setIsPlaying(false);
-    offsetRef.current = currentTime;
-  }, [currentTime]);
+  }, []);
 
   const seek = useCallback((position: number) => {
     const buffer = audioBufferRef.current;
@@ -267,10 +270,10 @@ export function useAudioEngine(): UseAudioEngineReturn {
     const time = position * buffer.duration;
     offsetRef.current = time;
     setCurrentTime(time);
-    if (isPlaying) {
+    if (sourceRef.current) {
       startPlayback(buffer, time);
     }
-  }, [isPlaying]);
+  }, []);
 
   const renderWithFilters = useCallback(async (blob: Blob) => {
     const engine = engineRef.current;
@@ -326,16 +329,20 @@ export function useAudioEngine(): UseAudioEngineReturn {
     startPlayback(buffer, elapsed);
   }
 
-  function rebuildFromCurrentState() {
+  function rebuildWithFilters(filterStates: FilterState[]) {
     const engine = engineRef.current;
     if (!engine) return;
-    const active = bypassedRef.current ? [] : filtersRef.current
+    const active = bypassedRef.current ? [] : filterStates
       .filter((f) => f.enabled)
       .map((f) => ({ definition: f.definition, params: f.params, enabled: true }));
     engine.rebuildGraph(active);
     if (sourceRef.current && audioBufferRef.current) {
       restartPlayback();
     }
+  }
+
+  function rebuildFromCurrentState() {
+    rebuildWithFilters(filtersRef.current);
   }
 
   return {
