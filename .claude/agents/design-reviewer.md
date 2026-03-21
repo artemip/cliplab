@@ -61,6 +61,19 @@ Common violations to watch for:
 - Active voice, ≤ 7 words per UI label
 - No product tours or onboarding modals
 
+## World-Class Assessment
+
+Every PR that ships visual UI should be evaluated against this question: **would this stand next to SoundCloud's waveform, Linear's list views, or Stripe's data tables without looking out of place?**
+
+Specifically:
+- **Density**: are bars/elements dense enough to read as continuous audio, not a bar chart?
+- **Responsiveness**: does the UI respond to hover, focus, and interaction before the user commits?
+- **Animation**: are transitions smooth, physics-based, and meaningful (not decorative)?
+- **Polish**: are edges clean, colors intentional, empty states handled, loading states structured?
+- **Personality**: does this feel like an audio tool made by someone who uses audio tools?
+
+If the answer to any of these is "no," flag it explicitly with a comparison to what the quality bar looks like (cite SoundCloud, Ableton, Linear, Stripe, Teenage Engineering by name).
+
 ## Scope Context
 
 4-8 hour demo — no auth, cloud storage, or deployment infra. But the visual and interaction quality should be indistinguishable from a production app. Every token, every state, every animation is in scope and should be excellent.

@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /**
  * Waveform component tests.
@@ -49,6 +50,18 @@ beforeEach(() => {
   // Install mocks
   vi.stubGlobal("ResizeObserver", MockResizeObserver);
   vi.stubGlobal("devicePixelRatio", 1);
+
+  // Mock matchMedia for prefers-reduced-motion
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    onchange: null,
+    dispatchEvent: vi.fn(),
+  }));
 
   // Mock canvas getContext
   HTMLCanvasElement.prototype.getContext = vi.fn(() =>
@@ -104,7 +117,7 @@ describe("Waveform", () => {
       expect(canvas?.getAttribute("aria-label")).toBe("Audio waveform");
     });
 
-    it("has role=img", () => {
+    it("has role=img when not seekable", () => {
       const { container } = render(
         <Waveform mode="static" peaks={[0.5]} />
       );
@@ -112,12 +125,20 @@ describe("Waveform", () => {
       expect(canvas?.getAttribute("role")).toBe("img");
     });
 
-    it("has role=img even when seekable (keyboard seek not yet implemented)", () => {
+    it("has role=slider when seekable", () => {
       const { container } = render(
         <Waveform mode="static" peaks={[0.5]} onSeek={() => {}} />
       );
       const canvas = container.querySelector("canvas");
-      expect(canvas?.getAttribute("role")).toBe("img");
+      expect(canvas?.getAttribute("role")).toBe("slider");
+    });
+
+    it("has tabIndex when seekable", () => {
+      const { container } = render(
+        <Waveform mode="static" peaks={[0.5]} onSeek={() => {}} />
+      );
+      const canvas = container.querySelector("canvas");
+      expect(canvas?.getAttribute("tabindex")).toBe("0");
     });
 
     it("has cursor-pointer when seekable", () => {
@@ -185,12 +206,20 @@ describe("Waveform", () => {
       fireEvent.click(canvas, { clientX: 400, clientY: 60 });
     });
 
-    it("includes progress in aria-label when seekable", () => {
+    it("sets aria-valuenow based on progress when seekable", () => {
       const { container } = render(
         <Waveform mode="static" peaks={[0.5]} onSeek={() => {}} progress={0.73} />
       );
       const canvas = container.querySelector("canvas");
-      expect(canvas?.getAttribute("aria-label")).toContain("73% played");
+      expect(canvas?.getAttribute("aria-valuenow")).toBe("73");
+    });
+
+    it("has focus-visible styles", () => {
+      const { container } = render(
+        <Waveform mode="static" peaks={[0.5]} onSeek={() => {}} />
+      );
+      const canvas = container.querySelector("canvas");
+      expect(canvas?.className).toContain("focus-visible");
     });
   });
 

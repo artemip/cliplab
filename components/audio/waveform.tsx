@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -16,9 +16,7 @@ interface LiveWaveformProps extends WaveformBaseProps {
   mode: "live";
   /**
    * Time-domain data from AnalyserNode.getFloatTimeDomainData().
-   * The caller should mutate this array in-place each frame (the standard
-   * Web Audio pattern). If a new array reference is passed, the animation
-   * loop restarts — which works but is less efficient.
+   * Caller should mutate in-place each frame (standard Web Audio pattern).
    */
   analyserData: Float32Array | null;
 }
@@ -33,49 +31,73 @@ interface StaticWaveformProps extends WaveformBaseProps {
 export type WaveformProps = LiveWaveformProps | StaticWaveformProps;
 
 // ---------------------------------------------------------------------------
-// Colors — resolve from CSS vars each time (cheap, no stale cache risk)
+// Colors — resolved once per component mount, cached in ref
 // ---------------------------------------------------------------------------
 
-function getColors() {
-  if (typeof window === "undefined") {
-    return { active: "#f59e0b", idle: "#334155", progress: "#fbbf24" };
-  }
+interface Colors {
+  active: string;
+  idle: string;
+  progress: string;
+  glow: string;
+  hover: string;
+}
+
+const FALLBACK_COLORS: Colors = {
+  active: "#f59e0b",
+  idle: "#334155",
+  progress: "#fbbf24",
+  glow: "rgba(245, 158, 11, 0.4)",
+  hover: "rgba(245, 158, 11, 0.3)",
+};
+
+function resolveColors(): Colors {
+  if (typeof window === "undefined") return FALLBACK_COLORS;
   const s = getComputedStyle(document.documentElement);
   const g = (n: string, f: string) => s.getPropertyValue(n).trim() || f;
   return {
-    active: g("--waveform-active", "#f59e0b"),
-    idle: g("--waveform-idle", "#334155"),
-    progress: g("--waveform-progress", "#fbbf24"),
+    active: g("--waveform-active", FALLBACK_COLORS.active),
+    idle: g("--waveform-idle", FALLBACK_COLORS.idle),
+    progress: g("--waveform-progress", FALLBACK_COLORS.progress),
+    glow: g("--waveform-glow", FALLBACK_COLORS.glow).replace(/^0 0 \d+px /, "") || FALLBACK_COLORS.glow,
+    hover: FALLBACK_COLORS.hover,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Drawing
+// Drawing — thin bars, high density, rounded caps
 // ---------------------------------------------------------------------------
+
+const BAR_GAP = 1;
+const MIN_BAR_HEIGHT = 2;
+const BAR_WIDTH = 2; // thin bars for density
 
 function drawLive(
   ctx: CanvasRenderingContext2D,
   data: Float32Array,
   w: number,
-  h: number
+  h: number,
+  c: Colors
 ) {
-  const { active } = getColors();
-  const n = Math.min(data.length, Math.floor(w / 3));
-  if (n === 0) return;
-  const bw = Math.max(1, w / n - 1);
-  const per = Math.floor(data.length / n);
+  const barCount = Math.floor(w / (BAR_WIDTH + BAR_GAP));
+  if (barCount === 0) return;
+  const samplesPerBar = Math.floor(data.length / barCount);
 
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = active;
+  ctx.fillStyle = c.active;
 
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < barCount; i++) {
     let max = 0;
-    for (let s = i * per; s < (i + 1) * per && s < data.length; s++) {
+    const start = i * samplesPerBar;
+    for (let s = start; s < start + samplesPerBar && s < data.length; s++) {
       const a = Math.abs(data[s]);
       if (a > max) max = a;
     }
-    const bh = Math.max(2, max * h * 0.9);
-    ctx.fillRect(i * (bw + 1), (h - bh) / 2, bw, bh);
+    const bh = Math.max(MIN_BAR_HEIGHT, max * h * 0.9);
+    const x = i * (BAR_WIDTH + BAR_GAP);
+    const y = (h - bh) / 2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, BAR_WIDTH, bh, 1);
+    ctx.fill();
   }
 }
 
@@ -84,39 +106,76 @@ function drawStatic(
   peaks: number[],
   w: number,
   h: number,
-  progress: number
+  progress: number,
+  hoverPos: number | null,
+  c: Colors
 ) {
-  const { active, idle, progress: progressColor } = getColors();
-  const n = peaks.length;
-  if (n === 0) return;
-  const bw = Math.max(1, w / n - 1);
+  const barCount = Math.floor(w / (BAR_WIDTH + BAR_GAP));
+  if (barCount === 0) return;
+
+  // Resample peaks to match bar count
+  const step = peaks.length / barCount;
   const px = progress * w;
 
   ctx.clearRect(0, 0, w, h);
 
-  // Two-pass draw: idle bars first, then active bars (fewer fillStyle switches)
-  ctx.fillStyle = idle;
-  for (let i = 0; i < n; i++) {
-    const x = i * (bw + 1);
-    if (x + bw / 2 > px) {
-      const bh = Math.max(2, peaks[i] * h * 0.85);
-      ctx.fillRect(x, (h - bh) / 2, bw, bh);
+  // Pass 1: idle bars
+  ctx.fillStyle = c.idle;
+  for (let i = 0; i < barCount; i++) {
+    const x = i * (BAR_WIDTH + BAR_GAP);
+    if (x + BAR_WIDTH / 2 > px) {
+      const peakIdx = Math.min(Math.floor(i * step), peaks.length - 1);
+      const bh = Math.max(MIN_BAR_HEIGHT, peaks[peakIdx] * h * 0.85);
+      ctx.beginPath();
+      ctx.roundRect(x, (h - bh) / 2, BAR_WIDTH, bh, 1);
+      ctx.fill();
     }
   }
 
-  ctx.fillStyle = active;
-  for (let i = 0; i < n; i++) {
-    const x = i * (bw + 1);
-    if (x + bw / 2 <= px) {
-      const bh = Math.max(2, peaks[i] * h * 0.85);
-      ctx.fillRect(x, (h - bh) / 2, bw, bh);
+  // Pass 2: active bars
+  ctx.fillStyle = c.active;
+  for (let i = 0; i < barCount; i++) {
+    const x = i * (BAR_WIDTH + BAR_GAP);
+    if (x + BAR_WIDTH / 2 <= px) {
+      const peakIdx = Math.min(Math.floor(i * step), peaks.length - 1);
+      const bh = Math.max(MIN_BAR_HEIGHT, peaks[peakIdx] * h * 0.85);
+      ctx.beginPath();
+      ctx.roundRect(x, (h - bh) / 2, BAR_WIDTH, bh, 1);
+      ctx.fill();
     }
   }
 
-  // Playhead line
+  // Playhead with glow
   if (progress > 0 && progress < 1) {
-    ctx.fillStyle = progressColor;
-    ctx.fillRect(Math.floor(px) - 1, 0, 2, h);
+    const playX = Math.floor(px);
+    // Glow
+    ctx.shadowColor = c.glow;
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = c.progress;
+    ctx.fillRect(playX - 1, 0, 2, h);
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = "transparent";
+  }
+
+  // Hover preview line
+  if (hoverPos !== null && hoverPos >= 0 && hoverPos <= 1) {
+    const hx = Math.floor(hoverPos * w);
+    ctx.fillStyle = c.hover;
+    ctx.fillRect(hx - 1, 0, 2, h);
+  }
+}
+
+function drawEmpty(ctx: CanvasRenderingContext2D, w: number, h: number, c: Colors) {
+  const barCount = Math.floor(w / (BAR_WIDTH + BAR_GAP));
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = c.idle;
+
+  // Flat minimum-height bars as a placeholder
+  for (let i = 0; i < barCount; i++) {
+    const x = i * (BAR_WIDTH + BAR_GAP);
+    ctx.beginPath();
+    ctx.roundRect(x, (h - MIN_BAR_HEIGHT) / 2, BAR_WIDTH, MIN_BAR_HEIGHT, 1);
+    ctx.fill();
   }
 }
 
@@ -129,24 +188,44 @@ export function Waveform(props: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const colorsRef = useRef<Colors>(FALLBACK_COLORS);
   const widthRef = useRef(0);
+  const [hoverPos, setHoverPos] = useState<number | null>(null);
 
   const h = props.height ?? 120;
 
-  // Stable draw function — assigned directly in render (no effect needed for refs)
+  // Resolve colors on mount
+  useEffect(() => {
+    colorsRef.current = resolveColors();
+  }, []);
+
+  // Check reduced motion preference
+  const prefersReducedMotion = useRef(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    prefersReducedMotion.current = mq.matches;
+    const handler = (e: MediaQueryListEvent) => {
+      prefersReducedMotion.current = e.matches;
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // Draw function — always uses latest props via direct assignment
   const drawRef = useRef<() => void>(() => {});
   drawRef.current = () => {
     const ctx = ctxRef.current;
+    const c = colorsRef.current;
     if (!ctx || widthRef.current === 0) return;
 
     if (props.mode === "static" && props.peaks && props.peaks.length > 0) {
-      drawStatic(ctx, props.peaks, widthRef.current, h, props.progress ?? 0);
+      drawStatic(ctx, props.peaks, widthRef.current, h, props.progress ?? 0, hoverPos, c);
     } else if (props.mode === "static") {
-      ctx.clearRect(0, 0, widthRef.current, h);
+      drawEmpty(ctx, widthRef.current, h, c);
     }
   };
 
-  // Resize observer — sizes canvas, caches context, triggers redraw
+  // Resize observer
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -165,7 +244,7 @@ export function Waveform(props: WaveformProps) {
       widthRef.current = w;
 
       const ctx = canvas.getContext("2d");
-      if (ctx) ctx.scale(dpr, dpr);
+      if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctxRef.current = ctx;
 
       drawRef.current();
@@ -174,28 +253,37 @@ export function Waveform(props: WaveformProps) {
     const observer = new ResizeObserver(resize);
     observer.observe(container);
     resize();
-
     return () => observer.disconnect();
   }, [h]);
 
-  // Static mode: redraw on peaks/progress change
+  // Static mode: redraw on peaks/progress/hover change
   const staticPeaks = props.mode === "static" ? props.peaks : null;
   const staticProgress = props.mode === "static" ? props.progress : undefined;
   useEffect(() => {
     if (props.mode !== "static") return;
     drawRef.current();
-  }, [props.mode, staticPeaks, staticProgress]);
+  }, [props.mode, staticPeaks, staticProgress, hoverPos]);
 
-  // Live mode: animation loop (only starts when we have data)
+  // Live mode: animation loop
   const liveData = props.mode === "live" ? props.analyserData : null;
   useEffect(() => {
     if (props.mode !== "live" || !liveData) return;
 
+    // Reduced motion: draw once, don't animate
+    if (prefersReducedMotion.current) {
+      const ctx = ctxRef.current;
+      if (ctx && widthRef.current > 0) {
+        drawLive(ctx, liveData, widthRef.current, h, colorsRef.current);
+      }
+      return;
+    }
+
     const data = liveData;
+    const c = colorsRef.current;
     const loop = () => {
       const ctx = ctxRef.current;
       if (ctx && widthRef.current > 0) {
-        drawLive(ctx, data, widthRef.current, h);
+        drawLive(ctx, data, widthRef.current, h, c);
       }
       rafRef.current = requestAnimationFrame(loop);
     };
@@ -207,20 +295,66 @@ export function Waveform(props: WaveformProps) {
     };
   }, [props.mode, liveData, h]);
 
-  // Click-to-seek
+  // Seek via click or keyboard
   const seekable = props.mode === "static" && !!props.onSeek;
   const onSeekRef = useRef(props.mode === "static" ? props.onSeek : undefined);
   onSeekRef.current = props.mode === "static" ? props.onSeek : undefined;
 
+  const seekTo = useCallback((position: number) => {
+    onSeekRef.current?.(Math.max(0, Math.min(1, position)));
+  }, []);
+
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!onSeekRef.current) return;
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
-      onSeekRef.current(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
+      seekTo((e.clientX - rect.left) / rect.width);
     },
-    []
+    [seekTo]
   );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+      if (!onSeekRef.current) return;
+      const currentProgress =
+        props.mode === "static" ? props.progress ?? 0 : 0;
+      const step = 0.02; // 2% per arrow press
+
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          seekTo(currentProgress - step);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          seekTo(currentProgress + step);
+          break;
+        case "Home":
+          e.preventDefault();
+          seekTo(0);
+          break;
+        case "End":
+          e.preventDefault();
+          seekTo(1);
+          break;
+      }
+    },
+    [seekTo, props.mode, props.mode === "static" ? props.progress : 0]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!seekable) return;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setHoverPos((e.clientX - rect.left) / rect.width);
+    },
+    [seekable]
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    setHoverPos(null);
+  }, []);
 
   return (
     <div
@@ -230,14 +364,25 @@ export function Waveform(props: WaveformProps) {
     >
       <canvas
         ref={canvasRef}
-        onClick={handleClick}
-        className={cn("block w-full rounded-lg", seekable && "cursor-pointer")}
+        onClick={seekable ? handleClick : undefined}
+        onKeyDown={seekable ? handleKeyDown : undefined}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        tabIndex={seekable ? 0 : undefined}
+        className={cn(
+          "block w-full rounded-[var(--radius-lg)]",
+          seekable && "cursor-pointer",
+          "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        )}
         style={{ height: h }}
-        role="img"
-        aria-label={
+        role={seekable ? "slider" : "img"}
+        aria-label="Audio waveform"
+        aria-valuemin={seekable ? 0 : undefined}
+        aria-valuemax={seekable ? 100 : undefined}
+        aria-valuenow={
           seekable && props.mode === "static"
-            ? `Audio waveform, ${Math.round((props.progress ?? 0) * 100)}% played`
-            : "Audio waveform"
+            ? Math.round((props.progress ?? 0) * 100)
+            : undefined
         }
       />
     </div>
