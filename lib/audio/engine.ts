@@ -5,7 +5,7 @@
  * both real-time playback and offline rendering for export.
  */
 
-import type { FilterDefinition } from "./filters";
+import { MAX_FEEDBACK, type FilterDefinition } from "./filters";
 
 export interface ActiveFilter {
   definition: FilterDefinition;
@@ -13,9 +13,8 @@ export interface ActiveFilter {
   enabled: boolean;
 }
 
-/** Threshold constants for delay tail calculation. */
+/** Threshold constants for tail calculation. */
 const SILENCE_THRESHOLD = 0.001; // -60 dB
-const MAX_FEEDBACK = 0.95; // clamp to prevent infinite loops
 const MAX_TAIL_SECONDS = 30; // cap allocation
 
 function safeDisconnect(node: AudioNode): void {

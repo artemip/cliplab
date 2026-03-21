@@ -5,6 +5,9 @@
  * No class hierarchy, no inheritance. The engine chains them in sequence.
  */
 
+/** Max feedback level to prevent infinite loops in delay/reverb. */
+export const MAX_FEEDBACK = 0.95;
+
 export type ParamScale = "linear" | "log";
 
 export interface FilterParam {
@@ -118,7 +121,7 @@ const delay: FilterDefinition = {
   ],
   createNodes(ctx, params) {
     const time = params.time ?? 0.3;
-    const feedback = Math.min((params.feedback ?? 40) / 100, 0.95);
+    const feedback = Math.min((params.feedback ?? 40) / 100, MAX_FEEDBACK);
     const mix = (params.mix ?? 50) / 100;
 
     // Dry path: input gain
