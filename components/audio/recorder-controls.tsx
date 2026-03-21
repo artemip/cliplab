@@ -120,7 +120,7 @@ export function RecorderControls({
             aria-label={monitorEnabled ? "Disable headphone monitoring" : "Enable headphone monitoring"}
             title={monitorEnabled ? "Monitoring on" : "Monitoring off"}
           >
-            <Headphones className="h-4 w-4" aria-hidden="true" />
+            <Headphones className="h-5 w-5" aria-hidden="true" />
           </button>
         )}
 
@@ -131,7 +131,7 @@ export function RecorderControls({
             className={cn(
               "flex h-16 w-16 items-center justify-center rounded-full",
               "bg-[var(--recording-pulse)] text-[var(--text-primary)]",
-              "transition-all hover:brightness-110",
+              "transition-all hover:bg-[var(--recording-hover)]",
               "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
               "animate-[pulse-recording_2s_ease-in-out_infinite]"
             )}
@@ -167,7 +167,7 @@ export function RecorderControls({
             )}
             aria-label="Discard recording"
           >
-            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+            <RotateCcw className="h-5 w-5" aria-hidden="true" />
           </button>
         )}
       </div>

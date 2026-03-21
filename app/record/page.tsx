@@ -54,24 +54,28 @@ export default function RecordPage() {
     };
   }, [recorder.stream]);
 
-  // Generate peaks from recorded blob
+  // Generate peaks from recorded blob (with cancellation)
   useEffect(() => {
     if (recorder.status !== "stopped" || !recorder.blob) return;
 
     const engine = engineRef.current;
     if (!engine) return;
 
+    let cancelled = false;
+
     (async () => {
       try {
         const arrayBuffer = await recorder.blob!.arrayBuffer();
+        if (cancelled) return;
         const audioBuffer = await engine.context.decodeAudioData(arrayBuffer);
-        const peaks = generatePeaks(audioBuffer, 200);
-        setRecordedPeaks(peaks);
+        if (cancelled) return;
+        setRecordedPeaks(generatePeaks(audioBuffer, 200));
       } catch {
-        // Decoding may fail — show empty waveform
-        setRecordedPeaks(null);
+        if (!cancelled) setRecordedPeaks(null);
       }
     })();
+
+    return () => { cancelled = true; };
   }, [recorder.status, recorder.blob]);
 
   // Reset peaks when re-recording
@@ -86,6 +90,31 @@ export default function RecordPage() {
     setMonitorEnabled(next);
     engineRef.current?.setMonitor(next);
   };
+
+  // Keyboard shortcut: Space to toggle record/stop (disabled in inputs)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.code !== "Space") return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+
+      e.preventDefault();
+
+      if (recorder.status === "recording") {
+        recorder.stopRecording();
+      } else if (recorder.status === "ready") {
+        recorder.startRecording();
+      } else if (recorder.status === "stopped") {
+        recorder.reset();
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [recorder.status, recorder.startRecording, recorder.stopRecording, recorder.reset]);
 
   const isLive =
     recorder.status === "recording" || recorder.status === "ready";

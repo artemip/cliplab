@@ -77,7 +77,12 @@ export function useRecorder(): UseRecorderReturn {
 
     if (timerRef.current) clearInterval(timerRef.current);
     chunksRef.current = [];
-    const recorder = new MediaRecorder(stream);
+
+    // Pick a supported MIME type (varies by browser)
+    const mimeType = ["audio/webm", "audio/mp4", "audio/ogg"].find((t) =>
+      MediaRecorder.isTypeSupported(t)
+    );
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
     mediaRecorderRef.current = recorder;
 
     recorder.ondataavailable = (e) => {
