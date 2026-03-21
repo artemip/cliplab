@@ -13,6 +13,14 @@ export interface ActiveFilter {
   enabled: boolean;
 }
 
+function safeDisconnect(node: AudioNode): void {
+  try {
+    node.disconnect();
+  } catch {
+    // Already disconnected — Web Audio API throws if node has no connections
+  }
+}
+
 export class AudioEngine {
   private ctx: AudioContext;
   private source: AudioNode | null = null;
@@ -25,7 +33,7 @@ export class AudioEngine {
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 2048;
     this.monitorGain = this.ctx.createGain();
-    this.monitorGain.gain.value = 0; // Off by default — avoid echo
+    this.monitorGain.gain.value = 0;
     this.monitorGain.connect(this.ctx.destination);
   }
 
@@ -41,25 +49,19 @@ export class AudioEngine {
     return this.ctx.sampleRate;
   }
 
-  /**
-   * Ensure the AudioContext is running (browsers require user gesture).
-   */
+  /** Ensure the AudioContext is running (browsers require user gesture). */
   async resume(): Promise<void> {
     if (this.ctx.state === "suspended") {
       await this.ctx.resume();
     }
   }
 
-  /**
-   * Set monitor output (headphone monitoring during recording).
-   */
+  /** Toggle monitor output (headphone monitoring during recording). */
   setMonitor(enabled: boolean): void {
     this.monitorGain.gain.value = enabled ? 1 : 0;
   }
 
-  /**
-   * Connect a MediaStream (mic) as the audio source.
-   */
+  /** Connect a MediaStream (mic) as the audio source. */
   connectStream(stream: MediaStream): MediaStreamAudioSourceNode {
     this.disconnectSource();
     const source = this.ctx.createMediaStreamSource(stream);
@@ -69,13 +71,9 @@ export class AudioEngine {
   }
 
   /**
-   * Connect an AudioBuffer (recorded clip) for playback.
+   * Connect an AudioBuffer for playback.
    * Returns the BufferSourceNode so the caller can listen for `onended`.
-   */
-  /**
-   * Connect an AudioBuffer (recorded clip) for playback.
-   * Returns the BufferSourceNode so the caller can listen for `onended`.
-   * NOTE: Caller must explicitly call setMonitor(true) for playback audio.
+   * Caller must explicitly call setMonitor(true) for audible output.
    */
   connectBuffer(buffer: AudioBuffer): AudioBufferSourceNode {
     this.disconnectSource();
@@ -86,16 +84,10 @@ export class AudioEngine {
     return source;
   }
 
-  /**
-   * Disconnect the current source.
-   */
+  /** Disconnect the current source and tear down filter nodes. */
   disconnectSource(): void {
     if (this.source) {
-      try {
-        this.source.disconnect();
-      } catch {
-        // Already disconnected
-      }
+      safeDisconnect(this.source);
       this.source = null;
     }
     this.disconnectFilterNodes();
@@ -103,13 +95,11 @@ export class AudioEngine {
 
   /**
    * Rebuild the audio graph with the given filter chain.
-   * Disconnects everything and reconnects from scratch.
-   * This is O(n) where n = number of filters, takes microseconds.
+   * Disconnects everything and reconnects from scratch — O(n) where n < 10.
    */
   rebuildGraph(filters: ActiveFilter[]): void {
     this.disconnectFilterNodes();
 
-    // Create nodes for enabled filters
     this.filterNodes = [];
     for (const filter of filters) {
       if (filter.enabled) {
@@ -121,36 +111,32 @@ export class AudioEngine {
     this.rebuildConnections();
   }
 
-  /**
-   * Render an AudioBuffer through the filter chain offline.
-   * Returns a new AudioBuffer with filters baked in.
-   */
+  /** Render an AudioBuffer through the filter chain offline (bakes filters in). */
   async renderOffline(
     buffer: AudioBuffer,
     filters: ActiveFilter[]
   ): Promise<AudioBuffer> {
+    // For delay filter, extend the buffer to capture echo tail
+    const maxDelayTime = filters
+      .filter((f) => f.enabled && f.definition.id === "delay")
+      .reduce((max, f) => Math.max(max, (f.params.time ?? 0.3) * 3), 0);
+
+    const extraFrames = Math.ceil(maxDelayTime * buffer.sampleRate);
+
     const offlineCtx = new OfflineAudioContext(
       buffer.numberOfChannels,
-      buffer.length,
+      buffer.length + extraFrames,
       buffer.sampleRate
     );
 
     const source = offlineCtx.createBufferSource();
     source.buffer = buffer;
 
-    // Build filter chain
     const enabledFilters = filters.filter((f) => f.enabled);
-    const filterNodeChains: AudioNode[][] = [];
+    let lastNode: AudioNode = source;
 
     for (const filter of enabledFilters) {
       const nodes = filter.definition.createNodes(offlineCtx, filter.params);
-      filterNodeChains.push(nodes);
-    }
-
-    // Connect: source → filter chains → destination
-    let lastNode: AudioNode = source;
-
-    for (const nodes of filterNodeChains) {
       lastNode.connect(nodes[0]);
       lastNode = nodes[nodes.length - 1];
     }
@@ -161,17 +147,13 @@ export class AudioEngine {
     return offlineCtx.startRendering();
   }
 
-  /**
-   * Decode a Blob (audio file) into an AudioBuffer.
-   */
+  /** Decode a Blob into an AudioBuffer. */
   async decodeBlob(blob: Blob): Promise<AudioBuffer> {
     const arrayBuffer = await blob.arrayBuffer();
     return this.ctx.decodeAudioData(arrayBuffer);
   }
 
-  /**
-   * Clean up resources.
-   */
+  /** Clean up — close AudioContext and disconnect everything. */
   dispose(): void {
     this.disconnectSource();
     this.disconnectFilterNodes();
@@ -187,11 +169,7 @@ export class AudioEngine {
   private disconnectFilterNodes(): void {
     for (const nodes of this.filterNodes) {
       for (const node of nodes) {
-        try {
-          node.disconnect();
-        } catch {
-          // Already disconnected
-        }
+        safeDisconnect(node);
       }
     }
     this.filterNodes = [];
@@ -200,7 +178,6 @@ export class AudioEngine {
   private rebuildConnections(): void {
     if (!this.source) return;
 
-    // Chain: source → [filter chains] → analyser → monitorGain → destination
     let lastNode: AudioNode = this.source;
 
     for (const nodes of this.filterNodes) {
