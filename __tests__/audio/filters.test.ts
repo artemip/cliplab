@@ -201,7 +201,7 @@ describe("filter createNodes", () => {
   it("delay: handles extreme param values without throwing", () => {
     const filter = FILTER_REGISTRY.find((f) => f.id === "delay")!;
     expect(() => filter.createNodes(ctx, { time: 0.05, feedback: 0, mix: 0 })).not.toThrow();
-    expect(() => filter.createNodes(ctx, { time: 1, feedback: 0.9, mix: 1 })).not.toThrow();
+    expect(() => filter.createNodes(ctx, { time: 1, feedback: 90, mix: 100 })).not.toThrow();
   });
 
   it("all filters handle missing params gracefully via ?? defaults", () => {

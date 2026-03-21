@@ -34,6 +34,9 @@ export class AudioEngine {
     this.analyser.fftSize = 2048;
     this.monitorGain = this.ctx.createGain();
     this.monitorGain.gain.value = 0;
+    // Wire analyser → monitor → destination once. Only the source→filter→analyser
+    // path gets rebuilt on filter changes.
+    this.analyser.connect(this.monitorGain);
     this.monitorGain.connect(this.ctx.destination);
   }
 
@@ -116,12 +119,24 @@ export class AudioEngine {
     buffer: AudioBuffer,
     filters: ActiveFilter[]
   ): Promise<AudioBuffer> {
-    // For delay filter, extend the buffer to capture echo tail
-    const maxDelayTime = filters
-      .filter((f) => f.enabled && f.definition.id === "delay")
-      .reduce((max, f) => Math.max(max, (f.params.time ?? 0.3) * 3), 0);
-
-    const extraFrames = Math.ceil(maxDelayTime * buffer.sampleRate);
+    // Extend buffer to capture delay echo tail.
+    // At feedback level g, echoes decay as g^n per repeat. We need enough
+    // repeats until amplitude drops below audible threshold (-60dB ≈ 0.001).
+    // n = log(0.001) / log(g), then extra time = n * delayTime.
+    const delayFilters = filters.filter(
+      (f) => f.enabled && f.definition.id === "delay"
+    );
+    let extraSeconds = 0;
+    for (const f of delayFilters) {
+      const time = f.params.time ?? 0.3;
+      const feedback = Math.min((f.params.feedback ?? 40) / 100, 0.99);
+      const repeats =
+        feedback > 0.01
+          ? Math.ceil(Math.log(0.001) / Math.log(feedback))
+          : 1;
+      extraSeconds = Math.max(extraSeconds, time * repeats);
+    }
+    const extraFrames = Math.ceil(extraSeconds * buffer.sampleRate);
 
     const offlineCtx = new OfflineAudioContext(
       buffer.numberOfChannels,
@@ -149,8 +164,7 @@ export class AudioEngine {
 
   /** Clean up — close AudioContext and disconnect everything. */
   dispose(): void {
-    this.disconnectSource();
-    this.disconnectFilterNodes();
+    this.disconnectSource(); // also disconnects filter nodes
     if (this.ctx.state !== "closed") {
       this.ctx.close();
     }
@@ -172,7 +186,7 @@ export class AudioEngine {
   private rebuildConnections(): void {
     if (!this.source) return;
 
-    // Disconnect source from any previous wiring to avoid additive connections
+    // Disconnect source from previous wiring to avoid additive connections
     safeDisconnect(this.source);
 
     let lastNode: AudioNode = this.source;
@@ -182,8 +196,8 @@ export class AudioEngine {
       lastNode = nodes[nodes.length - 1];
     }
 
+    // Connect last filter (or source) to analyser.
+    // analyser → monitorGain → destination is wired once in constructor.
     lastNode.connect(this.analyser);
-    safeDisconnect(this.analyser);
-    this.analyser.connect(this.monitorGain);
   }
 }

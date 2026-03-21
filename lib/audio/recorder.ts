@@ -73,7 +73,7 @@ export function createRecorder() {
     };
 
     mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: mediaRecorder?.mimeType ?? "audio/webm" });
+      const blob = new Blob(chunks, { type: mediaRecorder?.mimeType || "audio/webm" });
       setState({ status: "stopped", blob });
       stopTimer();
     };

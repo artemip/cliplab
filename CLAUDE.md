@@ -90,11 +90,15 @@ uploads/          # Audio files (gitignored)
 - Don't log micro-decisions (variable names, import order). Only decisions a reviewer would care about.
 - Keep it readable — organized by category, each decision explains what we chose, what we rejected, and why.
 
+### Pre-PR Checklist
+- Run `/simplify` on all changed files before committing a PR. This catches complexity, duplication, and dead code before reviewers see it.
+- `pnpm lint && pnpm typecheck && pnpm test` must all pass before pushing.
+
 ### Reviews
 - Every PR goes through 4 agent reviewers: arena-reviewer (Wei-Lin), user-reviewer (Alex), design-reviewer, code-simplifier.
 - Target: 9+/10 from all agents before merge.
 - Local: `./scripts/review.sh` (ratings) or `./scripts/review.sh --fixup` (auto-iterate).
-- GitHub: `claude-review.yml` runs all 4 agents in parallel on every PR via `anthropics/claude-code-action@v1`.
+- GitHub: `claude-review.yml` runs all 4 agents in parallel on every PR via `anthropics/claude-code-action@v1`. Each posts a comment with rating.
 
 ### Git
 - Conventional commits: `feat:`, `fix:`, `chore:`, `test:`, `docs:`.

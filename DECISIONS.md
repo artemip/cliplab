@@ -100,3 +100,4 @@ We use Tailwind's built-in 4px spacing scale rather than custom `--space-*` toke
 - **Infinite scroll** with cursor-based pagination on the feed
 - **Filter reordering** via drag-and-drop (signal chain order matters creatively)
 - **Undo history** on filter parameter changes (Cmd+Z)
+- **Reverb filter** via ConvolverNode w/ generated impulse response (stretch goal — planned but not in initial 5-filter set)

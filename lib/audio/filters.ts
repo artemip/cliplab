@@ -113,13 +113,13 @@ const delay: FilterDefinition = {
   description: "Add repeating echoes",
   params: [
     { key: "time", label: "Delay Time", unit: "s", min: 0.05, max: 1, step: 0.01, default: 0.3 },
-    { key: "feedback", label: "Feedback", unit: "%", min: 0, max: 0.9, step: 0.01, default: 0.4 },
-    { key: "mix", label: "Wet/Dry", unit: "%", min: 0, max: 1, step: 0.01, default: 0.5 },
+    { key: "feedback", label: "Feedback", unit: "%", min: 0, max: 90, step: 1, default: 40 },
+    { key: "mix", label: "Wet/Dry", unit: "%", min: 0, max: 100, step: 1, default: 50 },
   ],
   createNodes(ctx, params) {
     const time = params.time ?? 0.3;
-    const feedback = params.feedback ?? 0.4;
-    const mix = params.mix ?? 0.5;
+    const feedback = Math.min((params.feedback ?? 40) / 100, 0.95);
+    const mix = (params.mix ?? 50) / 100;
 
     // Dry path: input gain
     const dryGain = ctx.createGain();
@@ -135,13 +135,11 @@ const delay: FilterDefinition = {
     const wetGain = ctx.createGain();
     wetGain.gain.value = mix;
 
-    // Merger to combine dry + wet
     const merger = ctx.createGain();
-    merger.gain.value = 1;
 
-    // Wire up: input → dryGain → merger
-    //          input → delayNode → wetGain → merger
-    //          delayNode → feedbackGain → delayNode (feedback loop)
+    // Wire: input → dryGain → merger
+    //       input → delayNode → wetGain → merger
+    //       delayNode → feedbackGain → delayNode (feedback loop)
     dryGain.connect(merger);
     delayNode.connect(wetGain);
     wetGain.connect(merger);
@@ -150,7 +148,6 @@ const delay: FilterDefinition = {
 
     // Input splitter fans out to dry + wet paths; merger combines them.
     const inputSplitter = ctx.createGain();
-    inputSplitter.gain.value = 1;
     inputSplitter.connect(dryGain);
     inputSplitter.connect(delayNode);
 
