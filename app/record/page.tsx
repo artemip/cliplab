@@ -32,6 +32,8 @@ export default function RecordPage() {
     const liveEngine = liveEngineRef.current;
     if (!liveEngine || !recorder.stream) return;
 
+    // Resume AudioContext (requires user gesture — mic grant counts)
+    liveEngine.resume();
     liveEngine.connectStream(recorder.stream);
 
     const analyser = liveEngine.analyserNode;

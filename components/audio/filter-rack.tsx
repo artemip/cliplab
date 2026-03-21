@@ -49,8 +49,8 @@ export function FilterRack({
 
   return (
     <div className="space-y-3">
-      {/* Presets row */}
-      <div className="flex items-center gap-2">
+      {/* Presets + bypass */}
+      <div className="flex flex-wrap items-center gap-2">
         {presets.map((preset) => {
           const isActive = activePreset === preset.id;
           return (

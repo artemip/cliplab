@@ -275,22 +275,14 @@ export const PRESETS: FilterPreset[] = [
     },
   },
   {
-    id: "telephone",
-    name: "Telephone",
-    description: "Thin, tinny, retro",
+    id: "megaphone",
+    name: "Megaphone",
+    description: "Cranked gain + crushed dynamics",
     filters: {
-      highpass: { frequency: 800, q: 1 },
-      lowpass: { frequency: 3000, q: 2 },
-      compressor: { threshold: -15, ratio: 8, attack: 0.001, release: 0.1 },
-    },
-  },
-  {
-    id: "distorted",
-    name: "Distorted",
-    description: "Cranked gain + heavy compression",
-    filters: {
-      gain: { level: 450 },
-      compressor: { threshold: -10, ratio: 20, attack: 0.001, release: 0.05 },
+      gain: { level: 500 },
+      highpass: { frequency: 500, q: 2 },
+      lowpass: { frequency: 4000, q: 3 },
+      compressor: { threshold: -5, ratio: 20, attack: 0.001, release: 0.01 },
     },
   },
   {
