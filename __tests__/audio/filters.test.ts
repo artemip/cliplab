@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   FILTER_REGISTRY,
+  PRESETS,
   getDefaultParams,
   type FilterDefinition,
 } from "@/lib/audio/filters";
@@ -50,12 +51,24 @@ function createMockNode(type: string): MockNode {
   };
 }
 
+function createMockBuffer() {
+  return {
+    getChannelData: () => new Float32Array(44100),
+    length: 44100,
+    sampleRate: 44100,
+    numberOfChannels: 2,
+  };
+}
+
 function createMockContext(): BaseAudioContext {
   return {
+    sampleRate: 44100,
     createGain: () => createMockNode("GainNode"),
     createBiquadFilter: () => createMockNode("BiquadFilterNode"),
     createDynamicsCompressor: () => createMockNode("DynamicsCompressorNode"),
     createDelay: () => createMockNode("DelayNode"),
+    createConvolver: () => ({ ...createMockNode("ConvolverNode"), buffer: null }),
+    createBuffer: () => createMockBuffer(),
   } as unknown as BaseAudioContext;
 }
 
@@ -65,8 +78,8 @@ function asMock(node: AudioNode): MockNode {
 }
 
 describe("FILTER_REGISTRY", () => {
-  it("contains exactly 5 filters", () => {
-    expect(FILTER_REGISTRY).toHaveLength(5);
+  it("contains exactly 6 filters", () => {
+    expect(FILTER_REGISTRY).toHaveLength(6);
   });
 
   it("has unique IDs", () => {
@@ -74,12 +87,13 @@ describe("FILTER_REGISTRY", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("includes gain, lowpass, highpass, compressor, delay", () => {
+  it("includes gain, lowpass, highpass, compressor, reverb, delay", () => {
     const ids = FILTER_REGISTRY.map((f) => f.id);
     expect(ids).toContain("gain");
     expect(ids).toContain("lowpass");
     expect(ids).toContain("highpass");
     expect(ids).toContain("compressor");
+    expect(ids).toContain("reverb");
     expect(ids).toContain("delay");
   });
 
@@ -204,9 +218,61 @@ describe("filter createNodes", () => {
     expect(() => filter.createNodes(ctx, { time: 1, feedback: 90, mix: 100 })).not.toThrow();
   });
 
+  it("reverb: returns [inputSplitter, merger] — two nodes", () => {
+    const filter = FILTER_REGISTRY.find((f) => f.id === "reverb")!;
+    const nodes = testFilter(filter);
+    expect(nodes).toHaveLength(2);
+    expect(asMock(nodes[0])._type).toBe("GainNode");
+    expect(asMock(nodes[1])._type).toBe("GainNode");
+  });
+
+  it("reverb: input splitter connects to dry + convolver paths", () => {
+    const filter = FILTER_REGISTRY.find((f) => f.id === "reverb")!;
+    const nodes = filter.createNodes(ctx, getDefaultParams(filter));
+    expect(asMock(nodes[0])._connections).toHaveLength(2);
+  });
+
   it("all filters handle missing params gracefully via ?? defaults", () => {
     for (const filter of FILTER_REGISTRY) {
       expect(() => filter.createNodes(ctx, {})).not.toThrow();
+    }
+  });
+});
+
+describe("PRESETS", () => {
+  it("has 3 presets", () => {
+    expect(PRESETS).toHaveLength(3);
+  });
+
+  it("every preset references only valid filter IDs", () => {
+    const validIds = new Set(FILTER_REGISTRY.map((f: FilterDefinition) => f.id));
+    for (const preset of PRESETS) {
+      for (const filterId of Object.keys(preset.filters)) {
+        expect(validIds.has(filterId)).toBe(true);
+      }
+    }
+  });
+
+  it("every preset has a name and description", () => {
+    for (const preset of PRESETS) {
+      expect(preset.name).toBeTruthy();
+      expect(preset.description).toBeTruthy();
+    }
+  });
+
+  it("preset param values are within filter param ranges", () => {
+    for (const preset of PRESETS) {
+      for (const [filterId, params] of Object.entries(preset.filters)) {
+        const filter = FILTER_REGISTRY.find((f: FilterDefinition) => f.id === filterId)!;
+        for (const [key, value] of Object.entries(params as Record<string, number>)) {
+          const param = filter.params.find((p: { key: string }) => p.key === key);
+          expect(param).toBeDefined();
+          if (param) {
+            expect(value).toBeGreaterThanOrEqual(param.min);
+            expect(value).toBeLessThanOrEqual(param.max);
+          }
+        }
+      }
     }
   });
 });

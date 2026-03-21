@@ -167,7 +167,7 @@ export class AudioEngine {
     filters: ActiveFilter[]
   ): Promise<AudioBuffer> {
     const extraFrames = Math.ceil(
-      this.calculateDelayTail(filters) * buffer.sampleRate
+      this.calculateFilterTail(filters) * buffer.sampleRate
     );
 
     const offlineCtx = new OfflineAudioContext(
@@ -207,22 +207,28 @@ export class AudioEngine {
   }
 
   /**
-   * Calculate extra seconds needed for delay echo tails.
-   * Uses log-based decay: n = log(threshold) / log(feedback).
+   * Calculate extra seconds needed for filter tails (delay echoes + reverb decay).
    */
-  private calculateDelayTail(filters: ActiveFilter[]): number {
+  private calculateFilterTail(filters: ActiveFilter[]): number {
     let extraSeconds = 0;
 
     for (const f of filters) {
-      if (!f.enabled || f.definition.id !== "delay") continue;
+      if (!f.enabled) continue;
 
-      const time = f.params.time ?? 0.3;
-      const feedback = Math.min((f.params.feedback ?? 40) / 100, MAX_FEEDBACK);
-      const repeats =
-        feedback > 0.01
-          ? Math.ceil(Math.log(SILENCE_THRESHOLD) / Math.log(feedback))
-          : 1;
-      extraSeconds = Math.max(extraSeconds, time * repeats);
+      if (f.definition.id === "delay") {
+        const time = f.params.time ?? 0.3;
+        const feedback = Math.min((f.params.feedback ?? 40) / 100, MAX_FEEDBACK);
+        const repeats =
+          feedback > 0.01
+            ? Math.ceil(Math.log(SILENCE_THRESHOLD) / Math.log(feedback))
+            : 1;
+        extraSeconds = Math.max(extraSeconds, time * repeats);
+      }
+
+      if (f.definition.id === "reverb") {
+        const decay = f.params.decay ?? 1.5;
+        extraSeconds = Math.max(extraSeconds, decay);
+      }
     }
 
     return Math.min(extraSeconds, MAX_TAIL_SECONDS);

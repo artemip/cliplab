@@ -155,6 +155,54 @@ const delay: FilterDefinition = {
   },
 };
 
+const reverb: FilterDefinition = {
+  id: "reverb",
+  name: "Reverb",
+  description: "Add depth and space — like singing in a room",
+  params: [
+    { key: "decay", label: "Decay", unit: "s", min: 0.1, max: 5, step: 0.1, default: 1.5 },
+    { key: "mix", label: "Wet/Dry", unit: "%", min: 0, max: 100, step: 1, default: 40 },
+  ],
+  createNodes(ctx, params) {
+    const decay = params.decay ?? 1.5;
+    const mix = (params.mix ?? 40) / 100;
+
+    // Generate impulse response: exponential decay white noise
+    const sampleRate = ctx.sampleRate;
+    const length = Math.floor(sampleRate * decay);
+    const impulse = ctx.createBuffer(2, length, sampleRate);
+
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+      }
+    }
+
+    const convolver = ctx.createConvolver();
+    convolver.buffer = impulse;
+
+    // Dry/wet mix routing (same pattern as delay)
+    const dryGain = ctx.createGain();
+    dryGain.gain.value = 1 - mix;
+
+    const wetGain = ctx.createGain();
+    wetGain.gain.value = mix;
+
+    const merger = ctx.createGain();
+
+    dryGain.connect(merger);
+    convolver.connect(wetGain);
+    wetGain.connect(merger);
+
+    const inputSplitter = ctx.createGain();
+    inputSplitter.connect(dryGain);
+    inputSplitter.connect(convolver);
+
+    return [inputSplitter, merger];
+  },
+};
+
 /**
  * All available filters. Order here is the default signal chain order.
  */
@@ -163,6 +211,7 @@ export const FILTER_REGISTRY: FilterDefinition[] = [
   lowPass,
   highPass,
   compressor,
+  reverb,
   delay,
 ];
 
@@ -178,3 +227,46 @@ export function getDefaultParams(
   }
   return params;
 }
+
+// ---------------------------------------------------------------------------
+// Presets — one-tap configurations for common use cases
+// ---------------------------------------------------------------------------
+
+export interface FilterPreset {
+  id: string;
+  name: string;
+  description: string;
+  /** Map of filter ID → param overrides. Filters not listed stay disabled. */
+  filters: Record<string, Record<string, number>>;
+}
+
+export const PRESETS: FilterPreset[] = [
+  {
+    id: "warm-vocal",
+    name: "Warm Vocal",
+    description: "Compression + light reverb",
+    filters: {
+      compressor: { threshold: -20, ratio: 4, attack: 0.003, release: 0.25 },
+      reverb: { decay: 1.2, mix: 25 },
+    },
+  },
+  {
+    id: "lofi-radio",
+    name: "Lo-Fi Radio",
+    description: "Muffled, compressed, boosted",
+    filters: {
+      lowpass: { frequency: 800, q: 1 },
+      compressor: { threshold: -30, ratio: 12, attack: 0.01, release: 0.25 },
+      gain: { level: 150 },
+    },
+  },
+  {
+    id: "ambient-space",
+    name: "Ambient Space",
+    description: "Long reverb + slow echoes",
+    filters: {
+      reverb: { decay: 4, mix: 60 },
+      delay: { time: 0.5, feedback: 50, mix: 40 },
+    },
+  },
+];

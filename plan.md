@@ -46,7 +46,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done
 > The core abstraction Arena will scrutinize. Must be clean, composable, testable.
 
 **Build:**
-- `lib/audio/filters.ts` — refine 5 filter definitions (gain, low-pass, high-pass, compressor, delay). Clean up existing code per simplifier feedback.
+- `lib/audio/filters.ts` — 6 filter definitions (gain, low-pass, high-pass, compressor, delay, reverb) + 3 presets (Warm Vocal, Lo-Fi Radio, Ambient Space).
 - `lib/audio/engine.ts` — refine AudioEngine class. Fix duplicate JSDoc. Extract `safeDisconnect` helper.
 - `lib/audio/recorder.ts` — new. MediaRecorder factory (requestMic, start, stop → Blob). States: idle, requesting, ready, recording, stopped.
 - `lib/audio/utils.ts` — new. Merge waveform + buffer utils: `generatePeaks`, `blobToAudioBuffer`, `audioBufferToWav`.
@@ -118,7 +118,7 @@ Test that canvas renders without error for both modes. Test click-to-seek fires 
 
 **Build:**
 - `hooks/use-recorder.ts` — state machine (idle → requesting → ready → recording → stopped). Handles mic denied, AudioContext interrupted.
-- `components/audio/recorder-controls.tsx` — big amber record button (pulses red when active), stop button, timer (tabular-nums), headphone monitor toggle, live waveform
+- `components/audio/recorder-controls.tsx` — big amber record button (pulses red when active), stop button, timer (tabular-nums), **prominent monitor-with-effects toggle** (headphone icon — vocalists need to hear delay/reverb while singing), live waveform
 - `app/record/page.tsx` — layout w/ 4 states: idle, recording, stopped, error. Mobile: record button in fixed bottom bar.
 
 **Testing approach:**
@@ -139,18 +139,19 @@ Test the recorder hook state machine thoroughly — valid transitions, invalid t
 > The interaction magic. Toggle filters, hear the difference instantly.
 
 **Build:**
-- `hooks/use-audio-engine.ts` — filter state management, graph orchestration, analyser data loop, auto-replay on filter toggle, offline render. Exposes: toggleFilter, updateParam, resetFilter, bypassAll, play, stop, seek.
-- `components/audio/filter-rack.tsx` — filter cards w/ toggle, collapsible sliders, top 2 expanded by default, per-filter reset, global bypass. Active = amber border, bypassed = dimmed. Sliders continuous on `input`.
-- `components/audio/player.tsx` — play/pause, time display (tabular-nums), waveform seek integration
+- `hooks/use-audio-engine.ts` — filter state management, graph orchestration, analyser data loop, auto-replay on filter toggle, offline render, **loop toggle**. Exposes: toggleFilter, updateParam, resetFilter, bypassAll, applyPreset, play, stop, seek, toggleLoop.
+- `components/audio/filter-rack.tsx` — **Preset row at top**: 3 one-tap buttons (Warm Vocal, Lo-Fi Radio, Ambient Space). Below: filter cards w/ toggle, collapsible sliders, top 2 expanded by default, per-filter reset, global bypass. Active = amber border, bypassed = dimmed. Sliders continuous on `input`.
+- `components/audio/player.tsx` — play/pause, **loop toggle**, time display (tabular-nums), waveform seek integration
 - Wire into `app/record/page.tsx` — after recording, show filter rack + player
 
 **Testing approach:**
-Test the engine hook's state management: filter toggling, param updates, reset, bypass (stores + restores previous state). Test filter rack renders all filters, expanded/collapsed correctly, fires correct callbacks. Test player renders play/pause states and fires callbacks.
+Test the engine hook's state management: filter toggling, param updates, reset, bypass (stores + restores previous state), preset application. Test filter rack renders all filters + presets, expanded/collapsed correctly, fires correct callbacks. Test player renders play/pause/loop states and fires callbacks.
 
 **Success criteria:**
-- Record → stop → toggle compressor → hear the difference immediately
-- Sliders update audio in real-time as you drag
+- Record → stop → tap "Warm Vocal" preset → hear compressor + reverb applied instantly
+- Toggle individual filters, adjust sliders → hear changes in real-time
 - Bypass all → hear raw vs filtered A/B
+- Loop toggle → audio loops for continuous tweaking
 - Reset → sliders snap to defaults
 - `pnpm test` — all tests pass
 
@@ -237,10 +238,7 @@ Test keyboard shortcuts (correct behavior, disabled in inputs). Test error state
 ### PR S1: Drag-to-scrub on waveform `[ ]`
 Pointer-drag seeking via `pointerdown` + `pointermove`. Audio plays at scrub position. Blocked by: PR 5.
 
-### PR S2: Reverb filter ("Room") `[ ]`
-ConvolverNode w/ generated impulse response. Params: decay, mix. Add to FILTER_REGISTRY. Blocked by: PR 1.
-
-### PR S3: Signal chain visualization `[ ]`
+### PR S2: Signal chain visualization `[ ]`
 `Input → [active filters] → Output` flow indicator, active lit amber. Above filter rack. Blocked by: PR 5.
 
 ### PR S4: Pre-seeded demo clip `[ ]`
