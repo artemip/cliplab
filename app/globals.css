@@ -116,7 +116,9 @@
   --z-modal: 40;
   --z-toast: 60;
 
-  /* shadcn compat — map to our tokens (dark-only, no light mode) */
+  /* shadcn component compat — these CSS custom properties are read directly by
+     shadcn component styles (not via Tailwind). The @theme inline block above
+     maps the same values for Tailwind utility classes. Both are needed. */
   --background: var(--bg-primary);
   --foreground: var(--text-primary);
   --card: var(--bg-elevated);
