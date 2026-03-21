@@ -135,7 +135,7 @@ describe("filter createNodes", () => {
 
   it("gain: respects level param", () => {
     const filter = FILTER_REGISTRY.find((f) => f.id === "gain")!;
-    const nodes = filter.createNodes(ctx, { level: 2.5 });
+    const nodes = filter.createNodes(ctx, { level: 250 });
     expect(asMock(nodes[0]).gain.value).toBe(2.5);
   });
 

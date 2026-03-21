@@ -136,6 +136,8 @@ export class AudioEngine {
           : 1;
       extraSeconds = Math.max(extraSeconds, time * repeats);
     }
+    // Cap at 30s to prevent extreme allocations at high feedback
+    extraSeconds = Math.min(extraSeconds, 30);
     const extraFrames = Math.ceil(extraSeconds * buffer.sampleRate);
 
     const offlineCtx = new OfflineAudioContext(

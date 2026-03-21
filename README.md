@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ClipLab
 
-## Getting Started
+Record audio in the browser, apply stackable filters (gain, EQ, compression, delay), preview with real-time playback, and share clips via short URLs.
 
-First, run the development server:
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+pnpm db:push
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Next.js 15 + Tailwind v4 + shadcn/ui + Hono + Drizzle (SQLite) + Vitest — mirrors Arena's production stack.
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+**Audio pipeline**: Record raw via MediaRecorder → preview with filters via Web Audio API → export via OfflineAudioContext (bakes filters into WAV) → upload to backend. Filters are non-destructive — tweak after recording, bake only on export.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Filter system**: Each filter is a plain `FilterDefinition` object with a `createNodes(ctx, params)` factory. No class hierarchy. Adding a filter = adding one object to a flat array. See [DECISIONS.md](./DECISIONS.md) for the full reasoning.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Commands
 
-## Deploy on Vercel
+| Command | What |
+|---------|------|
+| `pnpm dev` | Dev server |
+| `pnpm test` | Vitest (41 tests) |
+| `pnpm typecheck` | tsc --noEmit |
+| `pnpm lint` | ESLint |
+| `pnpm db:push` | Push schema to SQLite |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## What's Built
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 5 composable audio filters (gain, low-pass, high-pass, compressor, delay)
+- Audio engine with graph rebuild, offline rendering, monitor toggle
+- MediaRecorder wrapper with state machine and mic permission handling
+- WAV encoder (client) + WAV peak parser (server) with round-trip test coverage
+- Hono API with Zod validation and structured error responses
+- Dark-only design system with warm amber accent and full CSS custom property tokens
+- 41 unit tests
+
+## What's Intentionally Skipped
+
+- Auth / user accounts (all clips public)
+- Cloud storage (local filesystem — S3 is the production path)
+- Deployment config / Docker
+- Audio format conversion (WAV only — Opus for production)
+- Filter reordering UI (fixed order)
+
+See [DECISIONS.md](./DECISIONS.md) for detailed tradeoff reasoning.

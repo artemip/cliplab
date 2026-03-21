@@ -10,7 +10,7 @@ export type ParamScale = "linear" | "log";
 export interface FilterParam {
   key: string;
   label: string;
-  unit: string;
+  unit?: string;
   min: number;
   max: number;
   step: number;
@@ -44,11 +44,11 @@ const gain: FilterDefinition = {
   name: "Gain",
   description: "Adjust the volume level",
   params: [
-    { key: "level", label: "Level", unit: "x", min: 0, max: 3, step: 0.01, default: 1 },
+    { key: "level", label: "Level", unit: "%", min: 0, max: 300, step: 1, default: 100 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createGain();
-    node.gain.value = params.level ?? 1;
+    node.gain.value = (params.level ?? 100) / 100;
     return [node];
   },
 };
@@ -59,7 +59,7 @@ const lowPass: FilterDefinition = {
   description: "Cut high frequencies — warmer, darker tone",
   params: [
     { key: "frequency", label: "Cutoff", unit: "Hz", min: 200, max: 8000, step: 10, default: 2000, scale: "log" },
-    { key: "q", label: "Resonance", unit: "", min: 0.1, max: 20, step: 0.1, default: 1 },
+    { key: "q", label: "Resonance", min: 0.1, max: 20, step: 0.1, default: 1 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createBiquadFilter();
@@ -76,7 +76,7 @@ const highPass: FilterDefinition = {
   description: "Cut low frequencies — cleaner, thinner tone",
   params: [
     { key: "frequency", label: "Cutoff", unit: "Hz", min: 200, max: 8000, step: 10, default: 500, scale: "log" },
-    { key: "q", label: "Resonance", unit: "", min: 0.1, max: 20, step: 0.1, default: 1 },
+    { key: "q", label: "Resonance", min: 0.1, max: 20, step: 0.1, default: 1 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createBiquadFilter();

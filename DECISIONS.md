@@ -64,13 +64,9 @@ Thin controllers in `hono/`, business logic in `lib/api/`. We chose Hono over ra
 
 The waveform is the primary visual element of the entire app. During recording it needs 60fps updates from the AnalyserNode; during playback it needs click-to-seek with a moving playhead. Canvas redraws the entire frame each tick with no DOM manipulation. SVG would require updating hundreds of elements per frame, causing layout thrashing. WebGL is overkill. Canvas is the right tool.
 
-### Reverb via generated impulse response
+### Raw mic capture (no browser processing)
 
-We use a ConvolverNode with a programmatically generated impulse response (exponential decay white noise). This avoids loading external IR files while still giving users a "Room" effect that adds space and depth. Less realistic than a sampled room IR, but the zero-dependency tradeoff is worth it — and for voice clips and lo-fi music, algorithmic reverb sounds natural enough.
-
-### Pre-seeded demo clip
-
-The feed ships with one clip pre-loaded (a voice recording with delay applied) so first-time users immediately hear what the app can do. This eliminates the cold-start problem where users land on an empty feed and have to imagine the product rather than experiencing it.
+We pass `{ audio: true }` to `getUserMedia` without disabling browser audio processing (noise suppression, echo cancellation). For podcast/voice clips this is fine — browser defaults improve quality. For lo-fi music or raw capture, users may want unprocessed audio. A stretch goal is to add `{ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }` as a "raw mode" toggle.
 
 ### Auto-replay on filter toggle
 

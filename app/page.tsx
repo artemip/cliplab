@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Mic } from "lucide-react";
 
+const accentButtonClass =
+  "inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] min-h-[44px] px-4 py-3 text-sm font-medium text-[var(--accent-foreground)] transition-colors hover:bg-[var(--accent-hover)] focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]";
+
 export default function FeedPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
@@ -11,10 +14,7 @@ export default function FeedPage() {
             Record, filter, and share audio clips
           </p>
         </div>
-        <Link
-          href="/record"
-          className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--bg-primary)] transition-colors hover:bg-[var(--accent-hover)]"
-        >
+        <Link href="/record" className={accentButtonClass}>
           <Mic className="h-4 w-4" />
           Record
         </Link>
@@ -30,10 +30,7 @@ export default function FeedPage() {
           Record your first audio clip, apply filters, and share it with the
           world.
         </p>
-        <Link
-          href="/record"
-          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--bg-primary)] transition-colors hover:bg-[var(--accent-hover)]"
-        >
+        <Link href="/record" className={`mt-6 ${accentButtonClass}`}>
           <Mic className="h-4 w-4" />
           Record your first clip
         </Link>
