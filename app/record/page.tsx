@@ -78,13 +78,6 @@ export default function RecordPage() {
     return () => { cancelled = true; };
   }, [recorder.status, recorder.blob]);
 
-  // Reset peaks when re-recording
-  useEffect(() => {
-    if (recorder.status === "ready" || recorder.status === "recording") {
-      setRecordedPeaks(null);
-    }
-  }, [recorder.status]);
-
   const toggleMonitor = () => {
     const next = !monitorEnabled;
     setMonitorEnabled(next);
@@ -121,6 +114,8 @@ export default function RecordPage() {
   const isLive =
     recorder.status === "recording" || recorder.status === "ready";
   const isStopped = recorder.status === "stopped";
+  // Only show peaks when stopped — derived, not stored separately
+  const displayPeaks = isStopped ? recordedPeaks : null;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 py-6">
@@ -147,7 +142,7 @@ export default function RecordPage() {
         {isStopped && (
           <Waveform
             mode="static"
-            peaks={recordedPeaks}
+            peaks={displayPeaks}
             height={140}
             className="w-full"
           />

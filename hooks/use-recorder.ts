@@ -60,34 +60,7 @@ export function useRecorder(): UseRecorderReturn {
 
   const autoStartRef = useRef(false);
 
-  const requestMic = useCallback(async (autoStart = true) => {
-    setStatus("requesting");
-    setError(null);
-    autoStartRef.current = autoStart;
-
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      });
-      setStream(mediaStream);
-      if (autoStartRef.current) {
-        // Auto-start recording immediately after mic granted — one tap to record
-        setStatus("recording");
-        startRecordingWithStream(mediaStream);
-      } else {
-        setStatus("ready");
-      }
-    } catch (err) {
-      const message =
-        err instanceof DOMException && err.name === "NotAllowedError"
-          ? "Microphone access denied. Open your browser settings to allow mic access for this site."
-          : `Could not access microphone: ${err instanceof Error ? err.message : "Unknown error"}`;
-      setError(message);
-      setStatus("error");
-    }
-  }, []);
-
-  // Shared recording logic — used by both requestMic (auto-start) and startRecording
+  // Shared recording logic — must be defined before requestMic (which calls it)
   function startRecordingWithStream(mediaStream: MediaStream) {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") return;
     if (timerRef.current) clearInterval(timerRef.current);
@@ -125,6 +98,32 @@ export function useRecorder(): UseRecorderReturn {
       setDuration((Date.now() - startTimeRef.current) / 1000);
     }, 100);
   }
+
+  const requestMic = useCallback(async (autoStart = true) => {
+    setStatus("requesting");
+    setError(null);
+    autoStartRef.current = autoStart;
+
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+      setStream(mediaStream);
+      if (autoStartRef.current) {
+        setStatus("recording");
+        startRecordingWithStream(mediaStream);
+      } else {
+        setStatus("ready");
+      }
+    } catch (err) {
+      const message =
+        err instanceof DOMException && err.name === "NotAllowedError"
+          ? "Microphone access denied. Open your browser settings to allow mic access for this site."
+          : `Could not access microphone: ${err instanceof Error ? err.message : "Unknown error"}`;
+      setError(message);
+      setStatus("error");
+    }
+  }, []);
 
   const startRecording = useCallback(() => {
     if (!stream) return;

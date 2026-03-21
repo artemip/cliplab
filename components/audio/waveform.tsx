@@ -211,19 +211,26 @@ export function Waveform(props: WaveformProps) {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  // Draw function — always uses latest props via direct assignment
+  // Draw function ref — updated via effect to avoid "refs during render" lint error
   const drawRef = useRef<() => void>(() => {});
-  drawRef.current = () => {
-    const ctx = ctxRef.current;
-    const c = colorsRef.current;
-    if (!ctx || widthRef.current === 0) return;
+  const staticPeaks = props.mode === "static" ? props.peaks : null;
+  const staticProgress = props.mode === "static" ? props.progress : undefined;
 
-    if (props.mode === "static" && props.peaks && props.peaks.length > 0) {
-      drawStatic(ctx, props.peaks, widthRef.current, h, props.progress ?? 0, hoverPos, c);
-    } else if (props.mode === "static") {
-      drawEmpty(ctx, widthRef.current, h, c);
-    }
-  };
+  useEffect(() => {
+    drawRef.current = () => {
+      const ctx = ctxRef.current;
+      const c = colorsRef.current;
+      if (!ctx || widthRef.current === 0) return;
+
+      if (props.mode === "static" && staticPeaks && staticPeaks.length > 0) {
+        drawStatic(ctx, staticPeaks, widthRef.current, h, staticProgress ?? 0, hoverPos, c);
+      } else if (props.mode === "static") {
+        drawEmpty(ctx, widthRef.current, h, c);
+      }
+    };
+    // Redraw immediately when props change
+    drawRef.current();
+  }, [props.mode, staticPeaks, staticProgress, hoverPos, h]);
 
   // Resize observer
   useEffect(() => {
@@ -256,13 +263,6 @@ export function Waveform(props: WaveformProps) {
     return () => observer.disconnect();
   }, [h]);
 
-  // Static mode: redraw on peaks/progress/hover change
-  const staticPeaks = props.mode === "static" ? props.peaks : null;
-  const staticProgress = props.mode === "static" ? props.progress : undefined;
-  useEffect(() => {
-    if (props.mode !== "static") return;
-    drawRef.current();
-  }, [props.mode, staticPeaks, staticProgress, hoverPos]);
 
   // Live mode: animation loop
   const liveData = props.mode === "live" ? props.analyserData : null;
@@ -297,8 +297,11 @@ export function Waveform(props: WaveformProps) {
 
   // Seek via click or keyboard
   const seekable = props.mode === "static" && !!props.onSeek;
-  const onSeekRef = useRef(props.mode === "static" ? props.onSeek : undefined);
-  onSeekRef.current = props.mode === "static" ? props.onSeek : undefined;
+  const staticOnSeek = props.mode === "static" ? props.onSeek : undefined;
+  const onSeekRef = useRef(staticOnSeek);
+  useEffect(() => {
+    onSeekRef.current = staticOnSeek;
+  }, [staticOnSeek]);
 
   const seekTo = useCallback((position: number) => {
     onSeekRef.current?.(Math.max(0, Math.min(1, position)));
