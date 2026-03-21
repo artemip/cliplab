@@ -4,70 +4,69 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useRecorder } from "@/hooks/use-recorder";
+import { useAudioEngine } from "@/hooks/use-audio-engine";
 import { RecorderControls } from "@/components/audio/recorder-controls";
 import { Waveform } from "@/components/audio/waveform";
+import { Player } from "@/components/audio/player";
+import { FilterRack } from "@/components/audio/filter-rack";
 import { AudioEngine } from "@/lib/audio/engine";
 import { generatePeaks } from "@/lib/audio/utils";
 
 export default function RecordPage() {
   const recorder = useRecorder();
-  const engineRef = useRef<AudioEngine | null>(null);
-  const [analyserData, setAnalyserData] = useState<Float32Array | null>(null);
-  const [monitorEnabled, setMonitorEnabled] = useState(false);
+  const engine = useAudioEngine();
+  const liveEngineRef = useRef<AudioEngine | null>(null);
+  const [liveAnalyserData, setLiveAnalyserData] = useState<Float32Array | null>(null);
   const [recordedPeaks, setRecordedPeaks] = useState<number[] | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  // Create engine on mount
+  // Separate engine for live mic monitoring during recording
   useEffect(() => {
-    const engine = new AudioEngine();
-    engineRef.current = engine;
-    return () => engine.dispose();
+    const liveEngine = new AudioEngine();
+    liveEngineRef.current = liveEngine;
+    return () => liveEngine.dispose();
   }, []);
 
-  // Connect stream to engine when mic is ready
+  // Connect mic stream for live waveform
   useEffect(() => {
-    const engine = engineRef.current;
-    if (!engine || !recorder.stream) return;
+    const liveEngine = liveEngineRef.current;
+    if (!liveEngine || !recorder.stream) return;
 
-    engine.connectStream(recorder.stream);
+    liveEngine.connectStream(recorder.stream);
 
-    // Double-buffer: alternate between two arrays to avoid allocation per frame
-    const analyser = engine.analyserNode;
-    const bufferA = new Float32Array(analyser.fftSize);
-    const bufferB = new Float32Array(analyser.fftSize);
+    const analyser = liveEngine.analyserNode;
+    const bufA = new Float32Array(analyser.fftSize);
+    const bufB = new Float32Array(analyser.fftSize);
     let useA = true;
 
-    const readAnalyser = () => {
-      const buf = useA ? bufferA : bufferB;
+    const read = () => {
+      const buf = useA ? bufA : bufB;
       analyser.getFloatTimeDomainData(buf);
-      setAnalyserData(buf); // new reference triggers re-render
+      setLiveAnalyserData(buf);
       useA = !useA;
-      rafRef.current = requestAnimationFrame(readAnalyser);
+      rafRef.current = requestAnimationFrame(read);
     };
 
-    rafRef.current = requestAnimationFrame(readAnalyser);
-
+    rafRef.current = requestAnimationFrame(read);
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
-      engine.disconnectSource();
+      liveEngine.disconnectSource();
     };
   }, [recorder.stream]);
 
-  // Generate peaks from recorded blob (with cancellation)
+  // Generate peaks when recording stops
   useEffect(() => {
     if (recorder.status !== "stopped" || !recorder.blob) return;
-
-    const engine = engineRef.current;
-    if (!engine) return;
-
     let cancelled = false;
 
     (async () => {
       try {
-        const arrayBuffer = await recorder.blob!.arrayBuffer();
+        const liveEngine = liveEngineRef.current;
+        if (!liveEngine) return;
+        const ab = await recorder.blob!.arrayBuffer();
         if (cancelled) return;
-        const audioBuffer = await engine.context.decodeAudioData(arrayBuffer);
+        const audioBuffer = await liveEngine.context.decodeAudioData(ab);
         if (cancelled) return;
         setRecordedPeaks(generatePeaks(audioBuffer, 200));
       } catch {
@@ -78,97 +77,114 @@ export default function RecordPage() {
     return () => { cancelled = true; };
   }, [recorder.status, recorder.blob]);
 
-  const toggleMonitor = () => {
-    const next = !monitorEnabled;
-    setMonitorEnabled(next);
-    engineRef.current?.setMonitor(next);
-  };
-
-  // Keyboard shortcut: Space to toggle record/stop (disabled in inputs)
+  // Keyboard: Space toggles record/play
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.code !== "Space") return;
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      )
-        return;
-
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       e.preventDefault();
 
       if (recorder.status === "recording") {
         recorder.stopRecording();
       } else if (recorder.status === "idle") {
         recorder.requestMic();
-      } else if (recorder.status === "ready" || recorder.status === "stopped") {
+      } else if (recorder.status === "ready") {
         recorder.startRecording();
+      } else if (recorder.status === "stopped") {
+        if (engine.isPlaying) {
+          engine.stop();
+        } else {
+          handlePlay();
+        }
       }
     };
-
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [recorder.status, recorder.startRecording, recorder.stopRecording, recorder.reset]);
+  }, [recorder.status, engine.isPlaying]);
 
-  const isLive =
-    recorder.status === "recording" || recorder.status === "ready";
+  const handlePlay = async () => {
+    if (!recorder.blob) return;
+    await engine.play(recorder.blob);
+  };
+
+  const isLive = recorder.status === "recording" || recorder.status === "ready";
   const isStopped = recorder.status === "stopped";
-  // Only show peaks when stopped — derived, not stored separately
   const displayPeaks = isStopped ? recordedPeaks : null;
+  const progress = engine.duration > 0 ? engine.currentTime / engine.duration : 0;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 py-6">
       {/* Header */}
       <Link
         href="/"
-        className="mb-6 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+        className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to clips
       </Link>
 
-      {/* Waveform area */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-8">
-        {isLive && (
-          <Waveform
-            mode="live"
-            analyserData={analyserData}
-            height={140}
-            className="w-full"
-          />
-        )}
-
-        {isStopped && (
+      {/* Waveform */}
+      <div className="mb-4">
+        {isLive ? (
+          <Waveform mode="live" analyserData={liveAnalyserData} height={120} />
+        ) : isStopped ? (
           <Waveform
             mode="static"
             peaks={displayPeaks}
-            height={140}
-            className="w-full"
+            progress={progress}
+            onSeek={engine.seek}
+            height={120}
           />
+        ) : (
+          <Waveform mode="static" peaks={null} height={120} />
         )}
+      </div>
 
-        {(recorder.status === "idle" ||
-          recorder.status === "requesting" ||
-          recorder.status === "error") && (
-          <div className="w-full">
-            <Waveform mode="static" peaks={null} height={140} />
-          </div>
-        )}
-
-        {/* Controls — fixed bottom on mobile */}
-        <div className="w-full pb-[env(safe-area-inset-bottom)]">
-          <RecorderControls
-            status={recorder.status}
-            duration={recorder.duration}
-            error={recorder.error}
-            onRequestMic={recorder.requestMic}
-            onStart={recorder.startRecording}
-            onStop={recorder.stopRecording}
-            onReset={recorder.reset}
-            monitorEnabled={monitorEnabled}
-            onToggleMonitor={toggleMonitor}
+      {/* Player (only when stopped) */}
+      {isStopped && (
+        <div className="mb-6 flex justify-center">
+          <Player
+            isPlaying={engine.isPlaying}
+            looping={engine.looping}
+            currentTime={engine.currentTime}
+            duration={engine.duration}
+            onPlay={handlePlay}
+            onStop={engine.stop}
+            onToggleLoop={engine.toggleLoop}
           />
         </div>
+      )}
+
+      {/* Recorder controls */}
+      <div className="mb-6">
+        <RecorderControls
+          status={recorder.status}
+          duration={recorder.duration}
+          error={recorder.error}
+          onRequestMic={recorder.requestMic}
+          onStart={recorder.startRecording}
+          onStop={recorder.stopRecording}
+          onReset={recorder.reset}
+          monitorEnabled={engine.monitorEnabled}
+          onToggleMonitor={engine.toggleMonitor}
+        />
       </div>
+
+      {/* Filter rack (only when stopped) */}
+      {isStopped && (
+        <div className="flex-1">
+          <FilterRack
+            filters={engine.filters}
+            presets={engine.presets}
+            bypassed={engine.bypassed}
+            onToggleFilter={engine.toggleFilter}
+            onUpdateParam={engine.updateParam}
+            onResetFilter={engine.resetFilter}
+            onToggleBypass={engine.toggleBypass}
+            onApplyPreset={engine.applyPreset}
+          />
+        </div>
+      )}
     </main>
   );
 }
