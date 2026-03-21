@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-muted: var(--accent-muted);
+  --color-accent-surface: var(--accent-surface);
+  --color-accent-border: var(--accent-border);
+
+  --color-muted: var(--bg-elevated);
+  --color-muted-foreground: var(--text-secondary);
+
+  --color-card: var(--bg-elevated);
+  --color-card-foreground: var(--text-primary);
+
+  --color-border: var(--border-default);
+  --color-input: var(--border-default);
+  --color-ring: var(--accent);
+
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--text-primary);
+  --color-success: var(--success);
+
+  --color-popover: var(--bg-elevated);
+  --color-popover-foreground: var(--text-primary);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+}
+
+:root {
+  /* Backgrounds */
+  --bg-primary: #0b1120;
+  --bg-elevated: #111827;
+  --bg-interactive: #1f2937;
+
+  /* Borders */
+  --border-default: #1e293b;
+  --border-hover: #334155;
+
+  /* Text */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+
+  /* Accent — warm amber (audio meters / analog warmth) */
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-muted: #d97706;
+  --accent-surface: rgba(245, 158, 11, 0.08);
+  --accent-border: rgba(245, 158, 11, 0.25);
+  --accent-foreground: #0b1120;
+
+  /* Semantic colors */
+  --destructive: #fb7185;
+  --destructive-surface: rgba(251, 113, 133, 0.1);
+  --success: #34d399;
+  --success-surface: rgba(52, 211, 153, 0.1);
+  --info: #60a5fa;
+  --info-surface: rgba(96, 165, 250, 0.1);
+
+  /* Interactive states */
+  --bg-interactive-hover: #283548;
+  --bg-disabled: #1a2332;
+  --text-disabled: #475569;
+  --border-disabled: #1e293b;
+  --accent-pressed: #d97706;
+  --opacity-dimmed: 0.4;
+
+  /* Audio-specific */
+  --waveform-active: #f59e0b;
+  --waveform-idle: #334155;
+  --waveform-progress: #fbbf24;
+  --recording-pulse: #ef4444;
+  --recording-bg: rgba(239, 68, 68, 0.1);
+
+  /* Animation */
+  --duration-fast: 100ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Focus */
+  --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
+
+  /* Overlay */
+  --overlay: rgba(11, 17, 32, 0.8);
+
+  /* Skeleton */
+  --skeleton-base: var(--bg-interactive);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+  /* Z-index */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dropdown: 20;
+  --z-modal: 40;
+  --z-toast: 60;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Focus ring — global */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Hidden scrollbars */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

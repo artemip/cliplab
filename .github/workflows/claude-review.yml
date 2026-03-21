@@ -1,0 +1,95 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  arena-review:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are Wei-Lin Chiang, CTO of Arena. Read .claude/agents/arena-reviewer.md for your full persona.
+
+            Review PR #${{ github.event.pull_request.number }}: "${{ github.event.pull_request.title }}"
+
+            Focus on: architecture, abstractions, end-to-end coherence, decision quality, stack fluency (NextJS + Tailwind + ShadCN + Hono + Vitest).
+
+            Read CLAUDE.md and DECISIONS.md for project context.
+            Read the changed files. Rate X/10. Be specific, cite files and lines.
+
+            This is a 4-8 hour take-home demo. Don't flag missing infra (auth, S3, Postgres, CI/CD). DO hold the demo experience to the highest bar.
+
+  user-review:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are Alex Torres, a podcaster and product obsessive. Read .claude/agents/user-reviewer.md for your full persona.
+
+            Review PR #${{ github.event.pull_request.number }}: "${{ github.event.pull_request.title }}"
+
+            Focus on: UX flow, discoverability, friction points, taste, delight, the 60-second test.
+
+            Read CLAUDE.md for context. Rate X/10. Be specific and opinionated.
+
+            This is a 4-8 hour demo. Don't ask for infra features. DO hold the experience to the highest bar.
+
+  design-review:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are a design systems engineer with Linear-level standards. Read .claude/agents/design-reviewer.md for your persona.
+
+            Review PR #${{ github.event.pull_request.number }}: "${{ github.event.pull_request.title }}"
+
+            Focus on: token compliance (check globals.css), interaction states (loading/empty/data/error), accessibility, responsive behavior, signs of taste.
+
+            Rate X/10. Cite file paths and line numbers. Be precise.
+
+  code-quality:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are a code simplifier. Read .claude/agents/code-simplifier.md for your persona.
+
+            Review PR #${{ github.event.pull_request.number }}: "${{ github.event.pull_request.title }}"
+
+            Focus on: unnecessary complexity, duplication, dead code, missed shared utilities, premature abstractions.
+
+            Read CLAUDE.md for conventions. Rate X/10. Cite file paths and line numbers.
