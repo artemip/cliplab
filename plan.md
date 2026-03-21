@@ -1,6 +1,42 @@
 # ClipLab — Roadmap
 
-Each item is a PR. Each PR is independently testable, shippable, and goes through 4-agent review (9+/10 target). Ordered by dependency — later PRs build on earlier ones.
+## Context
+
+Take-home interview for Arena (formerly LMArena — AI evaluation platform, UC Berkeley, Angelopoulos/Chiang/Stoica, $1.7B). Their stack is NextJS + Tailwind + ShadCN + HonoJS + Postgres + Vitest — we mirror it exactly. 3-day window, 4-8 hours max. Arena cares about: how you think about problems/products, clean UX, thoughtful abstractions (filters as composable modules), good refactoring, reasonable error handling + state management.
+
+## Architecture
+
+**Audio pipeline**: Record raw via MediaRecorder → preview w/ filters via Web Audio API graph → export via OfflineAudioContext (bakes filters into final WAV) → upload to backend. Filters are non-destructive — users tweak after recording, bake only on export.
+
+**Filter abstraction**: Each filter is a plain `FilterDefinition` object w/ a `createNodes(ctx, params)` factory returning `AudioNode[]`. No classes. Flat `FILTER_REGISTRY` array. Adding a filter = adding one object.
+
+**AudioContext lifecycle**: One context per session, created on first user gesture. Shared between recorder (MediaStreamSource) and engine (filter graph). `dispose()` on unmount. Chrome/Safari require user gesture to `resume()`.
+
+**Graph rebuild**: On any filter change, disconnect all nodes and reconnect from scratch. O(n) where n<10, microseconds. Eliminates incremental mutation bugs. Tradeoff: delay echoes restart (no state transfer). Production would crossfade.
+
+**Known risks**: Safari OfflineAudioContext quirks, WAV header parsing edge cases (graceful degradation), iOS background tab suspension (`audioContext.state === 'interrupted'`), WAV file size (~10MB/min, fine for demo).
+
+**Storage**: SQLite (Drizzle ORM) for metadata, filesystem (`uploads/`) for audio. Zero external deps.
+
+## UX Principles
+
+- Record button: large glowing amber circle, visual anchor of the app. Pulses red during recording. Fixed bottom on mobile (thumb zone).
+- Live input visualization during recording is non-negotiable — users must see their voice moving something.
+- Filter rack: top 2 filters expanded by default (show sliders, not collapsed cards). Continuous slider updates on `input` (not release). Per-filter reset. Global bypass for A/B.
+- Auto-replay on filter toggle: playback restarts from current position with new filter state. Gesture → sound connection must be instant.
+- Every view: 4 states (loading/empty/data/error). No dead ends.
+- Feed: inline playback (one clip at a time), filter badges, mini waveforms.
+- Detail: full waveform + player + metadata + copy-to-clipboard share URL w/ toast.
+- Dark-only. Amber accent (#f59e0b). No pure white/black. All colors via CSS custom properties.
+- Signs of taste: <100ms interactions, nanoid slugs (no UUIDs), tabular-nums, hidden scrollbars, canvas waveforms (60fps).
+
+## Review Process
+
+Every PR goes through 4 agent reviewers (Wei-Lin/arena, Alex/user, design, code-simplifier) targeting 9+/10. Local: `./scripts/review.sh --fixup`. GitHub: `claude-review.yml` runs all 4 in parallel on PRs.
+
+---
+
+Each item below is a PR. Each PR is independently testable, shippable, and goes through agent review. Ordered by dependency.
 
 Status legend: `[ ]` not started, `[~]` in progress, `[x]` done
 
