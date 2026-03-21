@@ -200,7 +200,17 @@ export function useAudioEngine(): UseAudioEngineReturn {
     setBypassed((prev) => {
       const next = !prev;
       bypassedRef.current = next;
-      rebuildFromCurrentState();
+      // When bypassing, pass empty filters; when un-bypassing, pass current filters
+      const engine = engineRef.current;
+      if (engine) {
+        const active = next ? [] : filtersRef.current
+          .filter((f) => f.enabled)
+          .map((f) => ({ definition: f.definition, params: f.params, enabled: true }));
+        engine.rebuildGraph(active);
+        if (sourceRef.current && audioBufferRef.current) {
+          restartPlayback();
+        }
+      }
       return next;
     });
   }, []);
@@ -221,8 +231,8 @@ export function useAudioEngine(): UseAudioEngineReturn {
     const preset = PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
 
-    setFilters((prev) =>
-      prev.map((f) => {
+    setFilters((prev) => {
+      const next = prev.map((f) => {
         const presetParams = preset.filters[f.definition.id];
         if (presetParams) {
           return {
@@ -232,9 +242,10 @@ export function useAudioEngine(): UseAudioEngineReturn {
           };
         }
         return { ...f, enabled: false, params: getDefaultParams(f.definition) };
-      })
-    );
-    rebuildFromCurrentState();
+      });
+      rebuildWithFilters(next);
+      return next;
+    });
   }, []);
 
   const play = useCallback(async (blob: Blob) => {
@@ -242,7 +253,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
     if (!engine) return;
 
     await engine.resume();
-    engine.setMonitor(true);
+    engine.setMonitor(true); // Playback always outputs to speakers
 
     const arrayBuffer = await blob.arrayBuffer();
     const buffer = await engine.context.decodeAudioData(arrayBuffer);

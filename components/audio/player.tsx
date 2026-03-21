@@ -29,7 +29,7 @@ export function Player({
   onToggleLoop,
 }: PlayerProps) {
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-default)] px-4 py-3">
       {/* Play/Pause */}
       <button
         onClick={isPlaying ? onStop : onPlay}
@@ -61,7 +61,7 @@ export function Player({
       <button
         onClick={onToggleLoop}
         className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-95",
+          "flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-all active:scale-95",
           "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
           looping
             ? "bg-[var(--accent-surface)] text-[var(--accent)]"

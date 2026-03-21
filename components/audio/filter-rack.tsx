@@ -111,7 +111,8 @@ export function FilterRack({
                 />
                 <button
                   onClick={() => toggleExpanded(filter.definition.id)}
-                  className="flex flex-1 items-center gap-2 text-left"
+                  className="flex flex-1 items-center gap-2 text-left rounded focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  aria-expanded={isExpanded}
                 >
                   <div className="flex-1">
                     <span className="text-sm font-medium text-[var(--text-primary)]">
