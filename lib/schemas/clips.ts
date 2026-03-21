@@ -5,7 +5,14 @@ export const createClipSchema = z.object({
   duration: z.coerce.number().positive(),
   filterConfig: z
     .string()
-    .transform((s) => JSON.parse(s))
+    .transform((s, ctx) => {
+      try {
+        return JSON.parse(s);
+      } catch {
+        ctx.addIssue({ code: "custom", message: "Invalid JSON" });
+        return z.NEVER;
+      }
+    })
     .pipe(
       z.array(
         z.object({

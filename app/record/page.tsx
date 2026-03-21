@@ -157,7 +157,7 @@ export default function RecordPage() {
         )}
 
         {/* Controls — fixed bottom on mobile */}
-        <div className="w-full pb-safe">
+        <div className="w-full pb-[env(safe-area-inset-bottom)]">
           <RecorderControls
             status={recorder.status}
             duration={recorder.duration}

@@ -45,7 +45,7 @@ export function RecorderControls({
           className={cn(
             "flex h-20 w-20 items-center justify-center rounded-full",
             "bg-[var(--accent)] text-[var(--accent-foreground)]",
-            "transition-all hover:bg-[var(--accent-hover)] hover:scale-105",
+            "transition-all hover:bg-[var(--accent-hover)] hover:scale-105 active:scale-95",
             "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             "shadow-[var(--shadow-lg)]"
@@ -99,6 +99,7 @@ export function RecorderControls({
           "tabular-nums text-2xl font-medium tracking-tight",
           isRecording ? "text-[var(--recording-pulse)]" : "text-[var(--text-primary)]"
         )}
+        role="timer"
         aria-label={`Recording duration: ${formatTime(duration)}`}
       >
         {formatTime(duration)}
@@ -131,7 +132,7 @@ export function RecorderControls({
             className={cn(
               "flex h-16 w-16 items-center justify-center rounded-full",
               "bg-[var(--recording-pulse)] text-[var(--text-primary)]",
-              "transition-all hover:bg-[var(--recording-hover)]",
+              "transition-all hover:bg-[var(--recording-hover)] active:scale-95",
               "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
               "animate-[pulse-recording_2s_ease-in-out_infinite]"
             )}
@@ -141,11 +142,11 @@ export function RecorderControls({
           </button>
         ) : (
           <button
-            onClick={status === "ready" ? onStart : onReset}
+            onClick={onStart}
             className={cn(
               "flex h-16 w-16 items-center justify-center rounded-full",
               "bg-[var(--accent)] text-[var(--accent-foreground)]",
-              "transition-all hover:bg-[var(--accent-hover)] hover:scale-105",
+              "transition-all hover:bg-[var(--accent-hover)] hover:scale-105 active:scale-95",
               "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
               "shadow-[var(--shadow-lg)]"
             )}
@@ -173,7 +174,7 @@ export function RecorderControls({
       </div>
 
       {/* Status text */}
-      <p className="text-xs text-[var(--text-tertiary)]">
+      <p className="text-xs text-[var(--text-secondary)]">
         {isRecording
           ? "Recording..."
           : status === "stopped"
