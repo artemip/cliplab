@@ -147,12 +147,6 @@ export class AudioEngine {
     return offlineCtx.startRendering();
   }
 
-  /** Decode a Blob into an AudioBuffer. */
-  async decodeBlob(blob: Blob): Promise<AudioBuffer> {
-    const arrayBuffer = await blob.arrayBuffer();
-    return this.ctx.decodeAudioData(arrayBuffer);
-  }
-
   /** Clean up — close AudioContext and disconnect everything. */
   dispose(): void {
     this.disconnectSource();
@@ -178,6 +172,9 @@ export class AudioEngine {
   private rebuildConnections(): void {
     if (!this.source) return;
 
+    // Disconnect source from any previous wiring to avoid additive connections
+    safeDisconnect(this.source);
+
     let lastNode: AudioNode = this.source;
 
     for (const nodes of this.filterNodes) {
@@ -186,6 +183,7 @@ export class AudioEngine {
     }
 
     lastNode.connect(this.analyser);
+    safeDisconnect(this.analyser);
     this.analyser.connect(this.monitorGain);
   }
 }

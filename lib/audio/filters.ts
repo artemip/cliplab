@@ -5,13 +5,17 @@
  * No class hierarchy, no inheritance. The engine chains them in sequence.
  */
 
+export type ParamScale = "linear" | "log";
+
 export interface FilterParam {
   key: string;
   label: string;
+  unit: string;
   min: number;
   max: number;
   step: number;
   default: number;
+  scale?: ParamScale;
 }
 
 export interface FilterDefinition {
@@ -40,7 +44,7 @@ const gain: FilterDefinition = {
   name: "Gain",
   description: "Adjust the volume level",
   params: [
-    { key: "level", label: "Level", min: 0, max: 3, step: 0.01, default: 1 },
+    { key: "level", label: "Level", unit: "x", min: 0, max: 3, step: 0.01, default: 1 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createGain();
@@ -54,8 +58,8 @@ const lowPass: FilterDefinition = {
   name: "Low-Pass",
   description: "Cut high frequencies — warmer, darker tone",
   params: [
-    { key: "frequency", label: "Cutoff", min: 200, max: 8000, step: 10, default: 2000 },
-    { key: "q", label: "Resonance", min: 0.1, max: 20, step: 0.1, default: 1 },
+    { key: "frequency", label: "Cutoff", unit: "Hz", min: 200, max: 8000, step: 10, default: 2000, scale: "log" },
+    { key: "q", label: "Resonance", unit: "", min: 0.1, max: 20, step: 0.1, default: 1 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createBiquadFilter();
@@ -71,8 +75,8 @@ const highPass: FilterDefinition = {
   name: "High-Pass",
   description: "Cut low frequencies — cleaner, thinner tone",
   params: [
-    { key: "frequency", label: "Cutoff", min: 200, max: 8000, step: 10, default: 500 },
-    { key: "q", label: "Resonance", min: 0.1, max: 20, step: 0.1, default: 1 },
+    { key: "frequency", label: "Cutoff", unit: "Hz", min: 200, max: 8000, step: 10, default: 500, scale: "log" },
+    { key: "q", label: "Resonance", unit: "", min: 0.1, max: 20, step: 0.1, default: 1 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createBiquadFilter();
@@ -88,10 +92,10 @@ const compressor: FilterDefinition = {
   name: "Compressor",
   description: "Even out loud and quiet parts",
   params: [
-    { key: "threshold", label: "Threshold", min: -60, max: 0, step: 1, default: -24 },
-    { key: "ratio", label: "Ratio", min: 1, max: 20, step: 0.5, default: 12 },
-    { key: "attack", label: "Attack", min: 0, max: 1, step: 0.001, default: 0.003 },
-    { key: "release", label: "Release", min: 0, max: 1, step: 0.01, default: 0.25 },
+    { key: "threshold", label: "Threshold", unit: "dB", min: -60, max: 0, step: 1, default: -24 },
+    { key: "ratio", label: "Ratio", unit: ":1", min: 1, max: 20, step: 0.5, default: 12 },
+    { key: "attack", label: "Attack", unit: "s", min: 0, max: 1, step: 0.001, default: 0.003 },
+    { key: "release", label: "Release", unit: "s", min: 0, max: 1, step: 0.01, default: 0.25 },
   ],
   createNodes(ctx, params) {
     const node = ctx.createDynamicsCompressor();
@@ -108,9 +112,9 @@ const delay: FilterDefinition = {
   name: "Echo / Delay",
   description: "Add repeating echoes",
   params: [
-    { key: "time", label: "Delay Time", min: 0.05, max: 1, step: 0.01, default: 0.3 },
-    { key: "feedback", label: "Feedback", min: 0, max: 0.9, step: 0.01, default: 0.4 },
-    { key: "mix", label: "Wet/Dry", min: 0, max: 1, step: 0.01, default: 0.5 },
+    { key: "time", label: "Delay Time", unit: "s", min: 0.05, max: 1, step: 0.01, default: 0.3 },
+    { key: "feedback", label: "Feedback", unit: "%", min: 0, max: 0.9, step: 0.01, default: 0.4 },
+    { key: "mix", label: "Wet/Dry", unit: "%", min: 0, max: 1, step: 0.01, default: 0.5 },
   ],
   createNodes(ctx, params) {
     const time = params.time ?? 0.3;
