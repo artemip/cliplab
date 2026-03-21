@@ -31,14 +31,17 @@ export default function RecordPage() {
 
     engine.connectStream(recorder.stream);
 
-    // Set up analyser data reading
+    // Double-buffer: alternate between two arrays to avoid allocation per frame
     const analyser = engine.analyserNode;
-    const dataArray = new Float32Array(analyser.fftSize);
+    const bufferA = new Float32Array(analyser.fftSize);
+    const bufferB = new Float32Array(analyser.fftSize);
+    let useA = true;
 
     const readAnalyser = () => {
-      analyser.getFloatTimeDomainData(dataArray);
-      // Trigger re-render with new reference so React sees the change
-      setAnalyserData(new Float32Array(dataArray));
+      const buf = useA ? bufferA : bufferB;
+      analyser.getFloatTimeDomainData(buf);
+      setAnalyserData(buf); // new reference triggers re-render
+      useA = !useA;
       rafRef.current = requestAnimationFrame(readAnalyser);
     };
 

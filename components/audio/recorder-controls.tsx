@@ -111,7 +111,7 @@ export function RecorderControls({
           <button
             onClick={onToggleMonitor}
             className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+              "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
               "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
               monitorEnabled
                 ? "bg-[var(--accent-surface)] text-[var(--accent)]"
@@ -130,7 +130,7 @@ export function RecorderControls({
             onClick={onStop}
             className={cn(
               "flex h-16 w-16 items-center justify-center rounded-full",
-              "bg-[var(--recording-pulse)] text-white",
+              "bg-[var(--recording-pulse)] text-[var(--text-primary)]",
               "transition-all hover:brightness-110",
               "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
               "animate-[pulse-recording_2s_ease-in-out_infinite]"
@@ -160,7 +160,7 @@ export function RecorderControls({
           <button
             onClick={onReset}
             className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-full",
+              "flex h-11 w-11 items-center justify-center rounded-full",
               "bg-[var(--bg-interactive)] text-[var(--text-tertiary)]",
               "transition-colors hover:text-[var(--text-secondary)]",
               "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
