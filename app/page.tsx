@@ -1,9 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { Mic } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const accentLink =
-  "inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] min-h-[44px] px-3 text-sm font-medium text-[var(--accent-foreground)] transition-colors hover:bg-[var(--accent-hover)] active:bg-[var(--accent-pressed)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]";
 
 export default function FeedPage() {
   return (
@@ -15,7 +15,10 @@ export default function FeedPage() {
             Record, filter, and share audio clips
           </p>
         </div>
-        <Link href="/record" className={accentLink}>
+        <Link
+          href="/record"
+          className={buttonVariants({ variant: "accent", size: "lg" })}
+        >
           <Mic className="h-4 w-4" aria-hidden="true" />
           Record
         </Link>
@@ -31,7 +34,13 @@ export default function FeedPage() {
           Record your first audio clip, apply filters, and share it with the
           world.
         </p>
-        <Link href="/record" className={cn("mt-6", accentLink)}>
+        <Link
+          href="/record"
+          className={cn(
+            "mt-6",
+            buttonVariants({ variant: "accent", size: "lg" })
+          )}
+        >
           <Mic className="h-4 w-4" aria-hidden="true" />
           Record your first clip
         </Link>
