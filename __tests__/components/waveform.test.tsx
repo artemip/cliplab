@@ -104,7 +104,7 @@ describe("Waveform", () => {
       expect(canvas?.getAttribute("aria-label")).toBe("Audio waveform");
     });
 
-    it("has role=img when not seekable", () => {
+    it("has role=img", () => {
       const { container } = render(
         <Waveform mode="static" peaks={[0.5]} />
       );
@@ -112,12 +112,12 @@ describe("Waveform", () => {
       expect(canvas?.getAttribute("role")).toBe("img");
     });
 
-    it("has role=slider when seekable", () => {
+    it("has role=img even when seekable (keyboard seek not yet implemented)", () => {
       const { container } = render(
         <Waveform mode="static" peaks={[0.5]} onSeek={() => {}} />
       );
       const canvas = container.querySelector("canvas");
-      expect(canvas?.getAttribute("role")).toBe("slider");
+      expect(canvas?.getAttribute("role")).toBe("img");
     });
 
     it("has cursor-pointer when seekable", () => {
@@ -185,12 +185,12 @@ describe("Waveform", () => {
       fireEvent.click(canvas, { clientX: 400, clientY: 60 });
     });
 
-    it("sets aria-valuenow based on progress", () => {
+    it("includes progress in aria-label when seekable", () => {
       const { container } = render(
         <Waveform mode="static" peaks={[0.5]} onSeek={() => {}} progress={0.73} />
       );
       const canvas = container.querySelector("canvas");
-      expect(canvas?.getAttribute("aria-valuenow")).toBe("73");
+      expect(canvas?.getAttribute("aria-label")).toContain("73% played");
     });
   });
 

@@ -14,6 +14,12 @@ interface WaveformBaseProps {
 
 interface LiveWaveformProps extends WaveformBaseProps {
   mode: "live";
+  /**
+   * Time-domain data from AnalyserNode.getFloatTimeDomainData().
+   * The caller should mutate this array in-place each frame (the standard
+   * Web Audio pattern). If a new array reference is passed, the animation
+   * loop restarts — which works but is less efficient.
+   */
   analyserData: Float32Array | null;
 }
 
@@ -148,15 +154,19 @@ export function Waveform(props: WaveformProps) {
 
     function resize() {
       if (!canvas) return;
+      const dpr = window.devicePixelRatio || 1;
       const w = Math.floor(container!.clientWidth);
-      if (w === widthRef.current && canvas.width === w) return;
+      if (w === widthRef.current) return;
 
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
       widthRef.current = w;
-      ctxRef.current = canvas.getContext("2d");
+
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.scale(dpr, dpr);
+      ctxRef.current = ctx;
 
       drawRef.current();
     }
@@ -169,16 +179,19 @@ export function Waveform(props: WaveformProps) {
   }, [h]);
 
   // Static mode: redraw on peaks/progress change
+  const staticPeaks = props.mode === "static" ? props.peaks : null;
+  const staticProgress = props.mode === "static" ? props.progress : undefined;
   useEffect(() => {
     if (props.mode !== "static") return;
     drawRef.current();
-  });
+  }, [props.mode, staticPeaks, staticProgress]);
 
   // Live mode: animation loop (only starts when we have data)
+  const liveData = props.mode === "live" ? props.analyserData : null;
   useEffect(() => {
-    if (props.mode !== "live" || !props.analyserData) return;
+    if (props.mode !== "live" || !liveData) return;
 
-    const data = props.analyserData;
+    const data = liveData;
     const loop = () => {
       const ctx = ctxRef.current;
       if (ctx && widthRef.current > 0) {
@@ -192,20 +205,22 @@ export function Waveform(props: WaveformProps) {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [props.mode, props.mode === "live" ? props.analyserData : null, h]);
+  }, [props.mode, liveData, h]);
 
   // Click-to-seek
+  const seekable = props.mode === "static" && !!props.onSeek;
+  const onSeekRef = useRef(props.mode === "static" ? props.onSeek : undefined);
+  onSeekRef.current = props.mode === "static" ? props.onSeek : undefined;
+
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (props.mode !== "static" || !props.onSeek) return;
+      if (!onSeekRef.current) return;
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
-      props.onSeek(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
+      onSeekRef.current(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
     },
-    [props.mode, props.mode === "static" ? props.onSeek : null]
+    []
   );
-
-  const seekable = props.mode === "static" && !!props.onSeek;
 
   return (
     <div
@@ -218,14 +233,11 @@ export function Waveform(props: WaveformProps) {
         onClick={handleClick}
         className={cn("block w-full rounded-lg", seekable && "cursor-pointer")}
         style={{ height: h }}
-        role={seekable ? "slider" : "img"}
-        aria-label="Audio waveform"
-        aria-valuemin={seekable ? 0 : undefined}
-        aria-valuemax={seekable ? 100 : undefined}
-        aria-valuenow={
+        role="img"
+        aria-label={
           seekable && props.mode === "static"
-            ? Math.round((props.progress ?? 0) * 100)
-            : undefined
+            ? `Audio waveform, ${Math.round((props.progress ?? 0) * 100)}% played`
+            : "Audio waveform"
         }
       />
     </div>
