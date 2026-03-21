@@ -100,10 +100,8 @@ export default function RecordPage() {
         recorder.stopRecording();
       } else if (recorder.status === "idle") {
         recorder.requestMic();
-      } else if (recorder.status === "ready") {
+      } else if (recorder.status === "ready" || recorder.status === "stopped") {
         recorder.startRecording();
-      } else if (recorder.status === "stopped") {
-        recorder.reset();
       }
     };
 

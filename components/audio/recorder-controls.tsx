@@ -112,7 +112,7 @@ export function RecorderControls({
           <button
             onClick={onToggleMonitor}
             className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
+              "flex h-11 w-11 items-center justify-center rounded-full transition-all active:scale-95",
               "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
               monitorEnabled
                 ? "bg-[var(--accent-surface)] text-[var(--accent)]"
@@ -163,7 +163,7 @@ export function RecorderControls({
             className={cn(
               "flex h-11 w-11 items-center justify-center rounded-full",
               "bg-[var(--bg-interactive)] text-[var(--text-tertiary)]",
-              "transition-colors hover:text-[var(--text-secondary)]",
+              "transition-all hover:text-[var(--text-secondary)] active:scale-95",
               "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             )}
             aria-label="Discard recording"
