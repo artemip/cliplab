@@ -13,12 +13,43 @@ export interface ActiveFilter {
   enabled: boolean;
 }
 
+/** Threshold constants for delay tail calculation. */
+const SILENCE_THRESHOLD = 0.001; // -60 dB
+const MAX_FEEDBACK = 0.95; // clamp to prevent infinite loops
+const MAX_TAIL_SECONDS = 30; // cap allocation
+
 function safeDisconnect(node: AudioNode): void {
   try {
     node.disconnect();
   } catch {
-    // Already disconnected — Web Audio API throws if node has no connections
+    // Web Audio API throws if node has no connections
   }
+}
+
+/**
+ * Build a filter chain: connect source → enabled filters → destination.
+ * Shared between live graph and offline render.
+ */
+function connectFilterChain(
+  ctx: BaseAudioContext,
+  source: AudioNode,
+  destination: AudioNode,
+  filters: ActiveFilter[]
+): AudioNode[][] {
+  const filterNodes: AudioNode[][] = [];
+  let lastNode = source;
+
+  for (const filter of filters) {
+    if (filter.enabled) {
+      const nodes = filter.definition.createNodes(ctx, filter.params);
+      lastNode.connect(nodes[0]);
+      lastNode = nodes[nodes.length - 1];
+      filterNodes.push(nodes);
+    }
+  }
+
+  lastNode.connect(destination);
+  return filterNodes;
 }
 
 export class AudioEngine {
@@ -65,11 +96,19 @@ export class AudioEngine {
   }
 
   /** Connect a MediaStream (mic) as the audio source. */
-  connectStream(stream: MediaStream): MediaStreamAudioSourceNode {
+  connectStream(
+    stream: MediaStream,
+    filters: ActiveFilter[] = []
+  ): MediaStreamAudioSourceNode {
     this.disconnectSource();
     const source = this.ctx.createMediaStreamSource(stream);
     this.source = source;
-    this.rebuildConnections();
+    this.filterNodes = connectFilterChain(
+      this.ctx,
+      source,
+      this.analyser,
+      filters
+    );
     return source;
   }
 
@@ -78,12 +117,20 @@ export class AudioEngine {
    * Returns the BufferSourceNode so the caller can listen for `onended`.
    * Caller must explicitly call setMonitor(true) for audible output.
    */
-  connectBuffer(buffer: AudioBuffer): AudioBufferSourceNode {
+  connectBuffer(
+    buffer: AudioBuffer,
+    filters: ActiveFilter[] = []
+  ): AudioBufferSourceNode {
     this.disconnectSource();
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
     this.source = source;
-    this.rebuildConnections();
+    this.filterNodes = connectFilterChain(
+      this.ctx,
+      source,
+      this.analyser,
+      filters
+    );
     return source;
   }
 
@@ -103,15 +150,15 @@ export class AudioEngine {
   rebuildGraph(filters: ActiveFilter[]): void {
     this.disconnectFilterNodes();
 
-    this.filterNodes = [];
-    for (const filter of filters) {
-      if (filter.enabled) {
-        const nodes = filter.definition.createNodes(this.ctx, filter.params);
-        this.filterNodes.push(nodes);
-      }
+    if (this.source) {
+      safeDisconnect(this.source);
+      this.filterNodes = connectFilterChain(
+        this.ctx,
+        this.source,
+        this.analyser,
+        filters
+      );
     }
-
-    this.rebuildConnections();
   }
 
   /** Render an AudioBuffer through the filter chain offline (bakes filters in). */
@@ -119,26 +166,9 @@ export class AudioEngine {
     buffer: AudioBuffer,
     filters: ActiveFilter[]
   ): Promise<AudioBuffer> {
-    // Extend buffer to capture delay echo tail.
-    // At feedback level g, echoes decay as g^n per repeat. We need enough
-    // repeats until amplitude drops below audible threshold (-60dB ≈ 0.001).
-    // n = log(0.001) / log(g), then extra time = n * delayTime.
-    const delayFilters = filters.filter(
-      (f) => f.enabled && f.definition.id === "delay"
+    const extraFrames = Math.ceil(
+      this.calculateDelayTail(filters) * buffer.sampleRate
     );
-    let extraSeconds = 0;
-    for (const f of delayFilters) {
-      const time = f.params.time ?? 0.3;
-      const feedback = Math.min((f.params.feedback ?? 40) / 100, 0.99);
-      const repeats =
-        feedback > 0.01
-          ? Math.ceil(Math.log(0.001) / Math.log(feedback))
-          : 1;
-      extraSeconds = Math.max(extraSeconds, time * repeats);
-    }
-    // Cap at 30s to prevent extreme allocations at high feedback
-    extraSeconds = Math.min(extraSeconds, 30);
-    const extraFrames = Math.ceil(extraSeconds * buffer.sampleRate);
 
     const offlineCtx = new OfflineAudioContext(
       buffer.numberOfChannels,
@@ -149,16 +179,7 @@ export class AudioEngine {
     const source = offlineCtx.createBufferSource();
     source.buffer = buffer;
 
-    const enabledFilters = filters.filter((f) => f.enabled);
-    let lastNode: AudioNode = source;
-
-    for (const filter of enabledFilters) {
-      const nodes = filter.definition.createNodes(offlineCtx, filter.params);
-      lastNode.connect(nodes[0]);
-      lastNode = nodes[nodes.length - 1];
-    }
-
-    lastNode.connect(offlineCtx.destination);
+    connectFilterChain(offlineCtx, source, offlineCtx.destination, filters);
     source.start(0);
 
     return offlineCtx.startRendering();
@@ -166,7 +187,7 @@ export class AudioEngine {
 
   /** Clean up — close AudioContext and disconnect everything. */
   dispose(): void {
-    this.disconnectSource(); // also disconnects filter nodes
+    this.disconnectSource();
     if (this.ctx.state !== "closed") {
       this.ctx.close();
     }
@@ -185,21 +206,25 @@ export class AudioEngine {
     this.filterNodes = [];
   }
 
-  private rebuildConnections(): void {
-    if (!this.source) return;
+  /**
+   * Calculate extra seconds needed for delay echo tails.
+   * Uses log-based decay: n = log(threshold) / log(feedback).
+   */
+  private calculateDelayTail(filters: ActiveFilter[]): number {
+    let extraSeconds = 0;
 
-    // Disconnect source from previous wiring to avoid additive connections
-    safeDisconnect(this.source);
+    for (const f of filters) {
+      if (!f.enabled || f.definition.id !== "delay") continue;
 
-    let lastNode: AudioNode = this.source;
-
-    for (const nodes of this.filterNodes) {
-      lastNode.connect(nodes[0]);
-      lastNode = nodes[nodes.length - 1];
+      const time = f.params.time ?? 0.3;
+      const feedback = Math.min((f.params.feedback ?? 40) / 100, MAX_FEEDBACK);
+      const repeats =
+        feedback > 0.01
+          ? Math.ceil(Math.log(SILENCE_THRESHOLD) / Math.log(feedback))
+          : 1;
+      extraSeconds = Math.max(extraSeconds, time * repeats);
     }
 
-    // Connect last filter (or source) to analyser.
-    // analyser → monitorGain → destination is wired once in constructor.
-    lastNode.connect(this.analyser);
+    return Math.min(extraSeconds, MAX_TAIL_SECONDS);
   }
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Mic } from "lucide-react";
 
 const accentButtonClass =
-  "inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] min-h-[44px] px-4 py-3 text-sm font-medium text-[var(--accent-foreground)] transition-colors hover:bg-[var(--accent-hover)] focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]";
+  "inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] min-h-[44px] px-4 py-3 text-sm font-medium text-[var(--accent-foreground)] transition-colors hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]";
 
 export default function FeedPage() {
   return (

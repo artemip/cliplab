@@ -8,7 +8,7 @@ export default function RecordPage() {
     <main className="mx-auto max-w-2xl px-4 py-12">
       <Link
         href="/"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+        className="mb-6 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to clips
