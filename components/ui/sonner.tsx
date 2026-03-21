@@ -22,9 +22,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
         "--normal-border": "var(--border)",
         "--border-radius": "var(--radius)",
       } as React.CSSProperties}
-      toastOptions={{
-        classNames: { toast: "cn-toast" },
-      }}
       {...props}
     />
   )

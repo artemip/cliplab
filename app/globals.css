@@ -157,11 +157,6 @@ body {
   display: none;
 }
 
-/* Tabular nums utility */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
-
 /* Keyframes */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
