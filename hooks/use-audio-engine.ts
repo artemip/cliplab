@@ -352,10 +352,6 @@ export function useAudioEngine(): UseAudioEngineReturn {
     }
   }
 
-  function rebuildFromCurrentState() {
-    rebuildWithFilters(filtersRef.current);
-  }
-
   return {
     filters,
     bypassed,
