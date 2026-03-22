@@ -47,7 +47,10 @@ export default function FeedPage() {
     const audio = new Audio(`/api/clips/${clipId}/audio`);
     audioRef.current = audio;
     audio.onended = () => setPlayingId(null);
-    audio.play().catch(() => {}); // Ignore AbortError from rapid toggle
+    audio.play().catch((e) => {
+      // AbortError is expected on rapid toggle; log others
+      if (e.name !== "AbortError") console.warn("[ClipLab] Playback failed:", e);
+    });
     setPlayingId(clipId);
   };
 
@@ -62,7 +65,7 @@ export default function FeedPage() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12">
+    <main className="mx-auto max-w-2xl px-4 pt-12 pb-[max(3rem,env(safe-area-inset-bottom))]">
       <header className="mb-10 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-balance">ClipLab</h1>
@@ -79,11 +82,23 @@ export default function FeedPage() {
         </Link>
       </header>
 
-      {/* Loading */}
+      {/* Loading — structural skeleton matching clip card layout */}
       {loading && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-lg" />
+            <div key={i} className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4">
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-10" />
+                  </div>
+                  <Skeleton className="h-10 w-full rounded" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -179,7 +194,7 @@ export default function FeedPage() {
                       {filterConfig && filterConfig.length > 0 && (
                         <div className="flex gap-1">
                           {filterConfig.map((f) => (
-                            <Badge key={f.id} variant="secondary" className="text-[10px] px-1.5 py-0">
+                            <Badge key={f.id} variant="secondary" className="text-xs px-1.5 py-0">
                               {f.id}
                             </Badge>
                           ))}

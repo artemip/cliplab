@@ -65,7 +65,9 @@ export default function ClipDetailPage() {
   const handlePlay = () => {
     if (!audioRef.current) return;
     audioRef.current.loop = looping;
-    audioRef.current.play().catch(() => {});
+    audioRef.current.play().catch((e) => {
+      if (e.name !== "AbortError") console.warn("[ClipLab] Playback failed:", e);
+    });
   };
 
   const handleStop = () => {
@@ -184,7 +186,7 @@ export default function ClipDetailPage() {
               "transition-colors hover:text-[var(--text-primary)] active:scale-95",
               "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             )}
-            aria-label="Copy share link"
+            aria-label="Share — copy link"
           >
             <Share2 className="h-4 w-4" aria-hidden="true" />
             Share
