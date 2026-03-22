@@ -158,8 +158,12 @@ export function useAudioEngine(): UseAudioEngineReturn {
     const engine = engineRef.current;
     if (!engine) return;
 
-    if (sourceRef.current) {
-      try { sourceRef.current.stop(); } catch { /* ok */ }
+    // Null out ref BEFORE stopping to prevent onended race
+    // (Chrome fires onended synchronously on stop())
+    const oldSource = sourceRef.current;
+    sourceRef.current = null;
+    if (oldSource) {
+      try { oldSource.stop(); } catch { /* ok */ }
     }
 
     const source = engine.connectBuffer(buffer, getActiveFilters());
@@ -350,9 +354,12 @@ export function useAudioEngine(): UseAudioEngineReturn {
       const engine = engineRef.current;
       if (engine) {
         offsetRef.current = engine.context.currentTime - startTimeRef.current + offsetRef.current;
+        // Restore monitor to user's chosen state (play() forces it on)
+        engine.setMonitor(false);
       }
-      try { sourceRef.current.stop(); } catch { /* already stopped */ }
+      const old = sourceRef.current;
       sourceRef.current = null;
+      try { old.stop(); } catch { /* already stopped */ }
     }
     setIsPlaying(false);
   }, []);

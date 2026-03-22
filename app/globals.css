@@ -60,6 +60,7 @@
   --accent-muted: #d97706;
   --accent-surface: rgba(245, 158, 11, 0.08);
   --accent-border: rgba(245, 158, 11, 0.25);
+  --accent-surface-hover: rgba(245, 158, 11, 0.15);
   --accent-foreground: #0b1120;
 
   /* Semantic colors */

@@ -63,7 +63,7 @@ export function FilterRack({
                 "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
                 isActive
                   ? "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm"
-                  : "bg-[var(--accent-surface)] text-[var(--accent)] hover:bg-[var(--accent-border)]"
+                  : "bg-[var(--accent-surface)] text-[var(--accent)] hover:bg-[var(--accent-surface-hover)]"
               )}
               aria-pressed={isActive}
             >
@@ -111,7 +111,7 @@ export function FilterRack({
               )}
             >
               {/* Header */}
-              <div className="flex items-center gap-3 px-3 py-2.5">
+              <div className="flex items-center gap-3 px-3 py-3">
                 <Switch
                   checked={isEnabled}
                   onCheckedChange={() => onToggleFilter(filter.definition.id)}
@@ -119,7 +119,7 @@ export function FilterRack({
                 />
                 <button
                   onClick={() => toggleExpanded(filter.definition.id)}
-                  className="flex flex-1 items-center gap-2 text-left rounded focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  className="flex flex-1 items-center gap-2 text-left rounded min-h-[44px] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   aria-expanded={isExpanded}
                 >
                   <div className="flex-1">
@@ -140,8 +140,12 @@ export function FilterRack({
                 </button>
               </div>
 
-              {/* Params (collapsible) */}
-              {isExpanded && (
+              {/* Params (collapsible with animation) */}
+              <div
+                className="grid transition-[grid-template-rows] duration-200 ease-out"
+                style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
+              >
+                <div className="overflow-hidden">
                 <div className="border-t border-[var(--border-default)] px-3 py-3 space-y-3">
                   {filter.definition.params.map((param) => (
                     <div key={param.key} className="space-y-1.5">
@@ -170,7 +174,7 @@ export function FilterRack({
                         aria-label={`${filter.definition.name} ${param.label}`}
                       />
                       {param.hint && (
-                        <p className="text-[10px] text-[var(--text-tertiary)]">
+                        <p className="text-xs text-[var(--text-tertiary)]">
                           {param.hint}
                         </p>
                       )}
@@ -190,7 +194,8 @@ export function FilterRack({
                     Reset to defaults
                   </button>
                 </div>
-              )}
+                </div>
+              </div>
             </div>
           );
         })}
