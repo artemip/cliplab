@@ -58,7 +58,7 @@ export function FilterRack({
               key={preset.id}
               onClick={() => onApplyPreset(preset.id)}
               className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium min-h-[36px]",
+                "rounded-full px-3 py-1.5 text-xs font-medium min-h-[44px] flex items-center",
                 "transition-all active:scale-95",
                 "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
                 isActive

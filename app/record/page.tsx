@@ -79,6 +79,11 @@ export default function RecordPage() {
     return () => { cancelled = true; };
   }, [recorder.status, recorder.blob]);
 
+  const handlePlay = async () => {
+    if (!recorder.blob) return;
+    await engine.play(recorder.blob);
+  };
+
   // Keyboard: Space toggles record/play
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -103,11 +108,6 @@ export default function RecordPage() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [recorder.status, engine.isPlaying]);
-
-  const handlePlay = async () => {
-    if (!recorder.blob) return;
-    await engine.play(recorder.blob);
-  };
 
   const isLive = recorder.status === "recording" || recorder.status === "ready";
   const isStopped = recorder.status === "stopped";

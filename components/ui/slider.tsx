@@ -48,14 +48,14 @@ function Slider({
         value={currentValue}
         onChange={(e) => onValueChange?.([parseFloat(e.target.value)])}
         className={cn(
-          "absolute inset-0 h-full w-full cursor-pointer opacity-0",
+          "peer absolute inset-0 h-full w-full cursor-pointer opacity-0",
           "[&::-webkit-slider-thumb]:appearance-none",
         )}
         aria-label={ariaLabel}
       />
-      {/* Visual thumb */}
+      {/* Visual thumb — shows focus ring when input is focused */}
       <div
-        className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-ring bg-foreground ring-ring/50 transition-shadow top-1/2"
+        className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-ring bg-foreground ring-ring/50 transition-shadow top-1/2 peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--accent)]"
         style={{ left: `${percent}%` }}
         data-slot="slider-thumb"
       />

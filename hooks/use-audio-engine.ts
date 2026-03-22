@@ -67,6 +67,8 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const startTimeRef = useRef(0);
   const offsetRef = useRef(0);
   const rafRef = useRef<number | null>(null);
+  const rebuildRafRef = useRef<number | null>(null);
+  const pendingFiltersRef = useRef<FilterState[] | null>(null);
 
   const [filters, setFilters] = useState<FilterState[]>(() =>
     FILTER_REGISTRY.map((def) => ({
@@ -149,6 +151,62 @@ export function useAudioEngine(): UseAudioEngineReturn {
   }, [isPlaying]);
 
   // ---------------------------------------------------------------------------
+  // Internal helpers (must be before Actions that reference them)
+  // ---------------------------------------------------------------------------
+
+  function startPlayback(buffer: AudioBuffer, offset: number) {
+    const engine = engineRef.current;
+    if (!engine) return;
+
+    if (sourceRef.current) {
+      try { sourceRef.current.stop(); } catch { /* ok */ }
+    }
+
+    const source = engine.connectBuffer(buffer, getActiveFilters());
+    source.loop = loopingRef.current;
+    sourceRef.current = source;
+
+    source.onended = () => {
+      if (sourceRef.current === source) {
+        setIsPlaying(false);
+        sourceRef.current = null;
+        if (!loopingRef.current) {
+          offsetRef.current = 0;
+          setCurrentTime(0);
+        }
+      }
+    };
+
+    const clampedOffset = Math.min(offset, buffer.duration - 0.01);
+    startTimeRef.current = engine.context.currentTime;
+    offsetRef.current = clampedOffset;
+    source.start(0, clampedOffset);
+    setIsPlaying(true);
+  }
+
+  function restartPlayback() {
+    const buffer = audioBufferRef.current;
+    if (!buffer) return;
+    const engine = engineRef.current;
+    if (!engine) return;
+
+    const elapsed = engine.context.currentTime - startTimeRef.current + offsetRef.current;
+    startPlayback(buffer, elapsed);
+  }
+
+  function rebuildWithFilters(filterStates: FilterState[]) {
+    const engine = engineRef.current;
+    if (!engine) return;
+    const active = bypassedRef.current ? [] : filterStates
+      .filter((f) => f.enabled)
+      .map((f) => ({ definition: f.definition, params: f.params, enabled: true }));
+    engine.rebuildGraph(active);
+    if (sourceRef.current && audioBufferRef.current) {
+      restartPlayback();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Actions
   // ---------------------------------------------------------------------------
 
@@ -184,7 +242,17 @@ export function useAudioEngine(): UseAudioEngineReturn {
           ? { ...f, params: { ...f.params, [key]: value } }
           : f
       );
-      rebuildWithFilters(next);
+      // Coalesce rapid slider updates into one rebuild per frame
+      pendingFiltersRef.current = next;
+      if (!rebuildRafRef.current) {
+        rebuildRafRef.current = requestAnimationFrame(() => {
+          rebuildRafRef.current = null;
+          if (pendingFiltersRef.current) {
+            rebuildWithFilters(pendingFiltersRef.current);
+            pendingFiltersRef.current = null;
+          }
+        });
+      }
       return next;
     });
   }, []);
@@ -301,63 +369,6 @@ export function useAudioEngine(): UseAudioEngineReturn {
     const buffer = await engine.context.decodeAudioData(arrayBuffer);
     return engine.renderOffline(buffer, getActiveFilters());
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // Internal helpers
-  // ---------------------------------------------------------------------------
-
-  function startPlayback(buffer: AudioBuffer, offset: number) {
-    const engine = engineRef.current;
-    if (!engine) return;
-
-    // Stop current source
-    if (sourceRef.current) {
-      try { sourceRef.current.stop(); } catch { /* ok */ }
-    }
-
-    const source = engine.connectBuffer(buffer, getActiveFilters());
-    source.loop = loopingRef.current;
-    sourceRef.current = source;
-
-    source.onended = () => {
-      if (sourceRef.current === source) {
-        setIsPlaying(false);
-        sourceRef.current = null;
-        if (!loopingRef.current) {
-          offsetRef.current = 0;
-          setCurrentTime(0);
-        }
-      }
-    };
-
-    const clampedOffset = Math.min(offset, buffer.duration - 0.01);
-    startTimeRef.current = engine.context.currentTime;
-    offsetRef.current = clampedOffset;
-    source.start(0, clampedOffset);
-    setIsPlaying(true);
-  }
-
-  function restartPlayback() {
-    const buffer = audioBufferRef.current;
-    if (!buffer) return;
-    const engine = engineRef.current;
-    if (!engine) return;
-
-    const elapsed = engine.context.currentTime - startTimeRef.current + offsetRef.current;
-    startPlayback(buffer, elapsed);
-  }
-
-  function rebuildWithFilters(filterStates: FilterState[]) {
-    const engine = engineRef.current;
-    if (!engine) return;
-    const active = bypassedRef.current ? [] : filterStates
-      .filter((f) => f.enabled)
-      .map((f) => ({ definition: f.definition, params: f.params, enabled: true }));
-    engine.rebuildGraph(active);
-    if (sourceRef.current && audioBufferRef.current) {
-      restartPlayback();
-    }
-  }
 
   return {
     filters,
