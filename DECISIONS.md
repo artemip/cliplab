@@ -72,6 +72,18 @@ We pass `{ audio: true }` to `getUserMedia` without disabling browser audio proc
 
 When a user toggles a filter during preview, playback restarts from the current position with the new filter state applied. The connection between gesture and sound should be instant — if the user has to manually press play to hear the difference, the feedback loop is broken and the app feels like a settings panel instead of an instrument.
 
+### One-tap recording
+
+Tapping the mic button requests permission AND starts recording in one action. No intermediate "ready" state where the user has to tap again. This matches Voice Memos' one-tap UX. The `useRecorder` hook's `requestMic()` calls `startRecordingWithStream()` immediately after `getUserMedia` succeeds.
+
+### Presets for lowering the floor
+
+Three one-tap presets (Warm Vocal, Lo-Fi Radio, Ambient Space) configure multiple filters at once. A beginner taps "Warm Vocal" and hears compression + reverb applied instantly — no need to understand what "threshold" or "ratio" mean. Individual sliders remain available for power users who want fine control. Lower the floor, raise the ceiling.
+
+### Two AudioEngine instances on the record page
+
+One engine handles live mic monitoring during recording (connected to the MediaStream). A separate engine (via `useAudioEngine` hook) handles playback with filters after recording stops. This avoids conflicts between the recording and playback audio graphs — they have different sources, different filter chains, and different destinations.
+
 ---
 
 ## Design System

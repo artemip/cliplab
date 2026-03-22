@@ -2,6 +2,7 @@
 
 import { Mic, Square, Headphones, RotateCcw, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatTimePrecise } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import type { RecorderStatus } from "@/hooks/use-recorder";
 
@@ -15,13 +16,6 @@ interface RecorderControlsProps {
   onReset: () => void;
   monitorEnabled?: boolean;
   onToggleMonitor?: () => void;
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  const ms = Math.floor((seconds % 1) * 10);
-  return `${m}:${s.toString().padStart(2, "0")}.${ms}`;
 }
 
 export function RecorderControls({
@@ -100,9 +94,9 @@ export function RecorderControls({
           isRecording ? "text-[var(--recording-pulse)]" : "text-[var(--text-primary)]"
         )}
         role="timer"
-        aria-label={`Recording duration: ${formatTime(duration)}`}
+        aria-label={`Recording duration: ${formatTimePrecise(duration)}`}
       >
-        {formatTime(duration)}
+        {formatTimePrecise(duration)}
       </div>
 
       {/* Controls row */}
