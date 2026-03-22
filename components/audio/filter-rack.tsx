@@ -121,6 +121,7 @@ export function FilterRack({
                   onClick={() => toggleExpanded(filter.definition.id)}
                   className="flex flex-1 items-center gap-2 text-left rounded min-h-[44px] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                   aria-expanded={isExpanded}
+                  aria-controls={`${filter.definition.id}-params`}
                 >
                   <div className="flex-1">
                     <span className="text-sm font-medium text-[var(--text-primary)]">
@@ -149,7 +150,10 @@ export function FilterRack({
                 }}
               >
                 <div className="overflow-hidden">
-                <div className="border-t border-[var(--border-default)] px-3 py-3 space-y-3">
+                <div
+                  id={`${filter.definition.id}-params`}
+                  className="border-t border-[var(--border-default)] px-3 py-3 space-y-3"
+                >
                   {filter.definition.params.map((param) => (
                     <div key={param.key} className="space-y-1.5">
                       <div className="flex items-center justify-between">

@@ -55,7 +55,7 @@ function Slider({
       />
       {/* Visual thumb — shows focus ring when input is focused */}
       <div
-        className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-ring bg-foreground ring-ring/50 transition-shadow top-1/2 peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--accent)]"
+        className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-ring bg-foreground transition-shadow top-1/2 peer-focus-visible:shadow-[var(--focus-ring)]"
         style={{ left: `clamp(6px, ${percent}%, calc(100% - 6px))` }}
         data-slot="slider-thumb"
       />
