@@ -1,16 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Upload, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useRecorder } from "@/hooks/use-recorder";
 import { useAudioEngine } from "@/hooks/use-audio-engine";
 import { RecorderControls } from "@/components/audio/recorder-controls";
 import { Waveform } from "@/components/audio/waveform";
 import { Player } from "@/components/audio/player";
 import { FilterRack } from "@/components/audio/filter-rack";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { AudioEngine } from "@/lib/audio/engine";
-import { generatePeaks } from "@/lib/audio/utils";
+import { generatePeaks, audioBufferToWav } from "@/lib/audio/utils";
 
 export default function RecordPage() {
   const recorder = useRecorder();
@@ -18,7 +22,11 @@ export default function RecordPage() {
   const liveEngineRef = useRef<AudioEngine | null>(null);
   const [liveAnalyserData, setLiveAnalyserData] = useState<Float32Array | null>(null);
   const [recordedPeaks, setRecordedPeaks] = useState<number[] | null>(null);
+  const [clipName, setClipName] = useState("Clip 1");
+  const [uploading, setUploading] = useState(false);
+  const clipCountRef = useRef(1);
   const rafRef = useRef<number | null>(null);
+  const router = useRouter();
 
   // Separate engine for live mic monitoring during recording
   useEffect(() => {
@@ -78,6 +86,39 @@ export default function RecordPage() {
 
     return () => { cancelled = true; };
   }, [recorder.status, recorder.blob]);
+
+  const handleUpload = async () => {
+    if (!recorder.blob) return;
+    setUploading(true);
+    try {
+      // Render with filters baked in
+      const rendered = await engine.renderWithFilters(recorder.blob);
+      const wavBlob = audioBufferToWav(rendered);
+
+      // Build form data
+      const formData = new FormData();
+      formData.append("audio", wavBlob, `${clipName}.wav`);
+      formData.append("name", clipName);
+      formData.append("duration", String(rendered.duration));
+      const activeFilters = engine.filters
+        .filter((f) => f.enabled)
+        .map((f) => ({ id: f.definition.id, params: f.params }));
+      if (activeFilters.length > 0) {
+        formData.append("filterConfig", JSON.stringify(activeFilters));
+      }
+
+      const res = await fetch("/api/clips", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+
+      const clip = await res.json();
+      toast.success("Clip saved!");
+      router.push(`/clips/${clip.id}`);
+    } catch (err) {
+      toast.error("Failed to save clip. Try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handlePlay = async () => {
     if (!recorder.blob) return;
@@ -171,6 +212,32 @@ export default function RecordPage() {
           onToggleMonitor={engine.toggleMonitor}
         />
       </div>
+
+      {/* Save clip (only when stopped) */}
+      {isStopped && (
+        <div className="mb-6 flex items-center gap-3">
+          <Input
+            value={clipName}
+            onChange={(e) => setClipName(e.target.value)}
+            placeholder="Name your clip"
+            className="flex-1"
+            aria-label="Clip name"
+          />
+          <Button
+            variant="accent"
+            size="lg"
+            onClick={handleUpload}
+            disabled={uploading || !clipName.trim()}
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Upload className="h-4 w-4" aria-hidden="true" />
+            )}
+            {uploading ? "Saving..." : "Save clip"}
+          </Button>
+        </div>
+      )}
 
       {/* Filter rack (only when stopped) */}
       {isStopped && (
