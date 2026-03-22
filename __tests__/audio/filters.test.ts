@@ -240,8 +240,8 @@ describe("filter createNodes", () => {
 });
 
 describe("PRESETS", () => {
-  it("has 5 presets", () => {
-    expect(PRESETS).toHaveLength(5);
+  it("has 4 presets", () => {
+    expect(PRESETS).toHaveLength(4);
   });
 
   it("every preset references only valid filter IDs", () => {

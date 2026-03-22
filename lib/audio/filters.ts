@@ -285,14 +285,4 @@ export const PRESETS: FilterPreset[] = [
       compressor: { threshold: -5, ratio: 20, attack: 0.001, release: 0.01 },
     },
   },
-  {
-    id: "underwater",
-    name: "Underwater",
-    description: "Deep, muffled, dreamy",
-    filters: {
-      lowpass: { frequency: 400, q: 5 },
-      reverb: { decay: 3, mix: 70 },
-      gain: { level: 80 },
-    },
-  },
 ];

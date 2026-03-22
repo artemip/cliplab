@@ -2,6 +2,7 @@
 
 import { Play, Pause, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatTime } from "@/lib/format";
 
 interface PlayerProps {
   isPlaying: boolean;
@@ -11,12 +12,6 @@ interface PlayerProps {
   onPlay: () => void;
   onStop: () => void;
   onToggleLoop: () => void;
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 export function Player({

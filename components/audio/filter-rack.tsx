@@ -76,7 +76,7 @@ export function FilterRack({
         <button
           onClick={onToggleBypass}
           className={cn(
-            "ml-auto flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all active:scale-95",
+            "ml-auto flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium min-h-[44px] transition-all active:scale-95",
             "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
             bypassed
               ? "bg-[var(--destructive-surface)] text-[var(--destructive)]"

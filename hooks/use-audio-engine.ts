@@ -298,7 +298,14 @@ export function useAudioEngine(): UseAudioEngineReturn {
   }, []);
 
   const toggleLoop = useCallback(() => {
-    setLooping((prev) => !prev);
+    setLooping((prev) => {
+      const next = !prev;
+      // Update the active source's loop property immediately
+      if (sourceRef.current) {
+        sourceRef.current.loop = next;
+      }
+      return next;
+    });
   }, []);
 
   const applyPreset = useCallback((presetId: string) => {
