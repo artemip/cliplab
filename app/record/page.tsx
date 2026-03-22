@@ -115,7 +115,7 @@ export default function RecordPage() {
   const progress = engine.duration > 0 ? engine.currentTime / engine.duration : 0;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 py-6">
+    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 py-6 pb-[env(safe-area-inset-bottom)]">
       {/* Header */}
       <Link
         href="/"

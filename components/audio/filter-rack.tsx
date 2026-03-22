@@ -142,17 +142,20 @@ export function FilterRack({
 
               {/* Params (collapsible with animation) */}
               <div
-                className="grid transition-[grid-template-rows] duration-200 ease-out"
-                style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
+                className="grid transition-[grid-template-rows] duration-[var(--duration-normal)]"
+                style={{
+                  gridTemplateRows: isExpanded ? "1fr" : "0fr",
+                  transitionTimingFunction: "var(--ease-default)",
+                }}
               >
                 <div className="overflow-hidden">
                 <div className="border-t border-[var(--border-default)] px-3 py-3 space-y-3">
                   {filter.definition.params.map((param) => (
                     <div key={param.key} className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium text-[var(--text-secondary)]">
+                        <span className="text-xs font-medium text-[var(--text-secondary)]">
                           {param.label}
-                        </label>
+                        </span>
                         <span className="tabular-nums text-xs text-[var(--text-tertiary)]">
                           {filter.params[param.key]?.toFixed(
                             param.step < 1
@@ -185,7 +188,7 @@ export function FilterRack({
                   <button
                     onClick={() => onResetFilter(filter.definition.id)}
                     className={cn(
-                      "flex items-center gap-1 text-xs text-[var(--text-tertiary)]",
+                      "flex items-center gap-1 text-xs text-[var(--text-tertiary)] min-h-[44px]",
                       "transition-colors hover:text-[var(--text-secondary)] active:scale-95",
                       "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                     )}
