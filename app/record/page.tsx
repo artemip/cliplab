@@ -24,7 +24,7 @@ export default function RecordPage() {
   const [recordedPeaks, setRecordedPeaks] = useState<number[] | null>(null);
   const [clipName, setClipName] = useState("Clip 1");
   const [uploading, setUploading] = useState(false);
-  const clipCountRef = useRef(1);
+  const clipCountRef = useRef(2); // Next clip name after "Clip 1"
   const rafRef = useRef<number | null>(null);
   const router = useRouter();
 
@@ -112,6 +112,9 @@ export default function RecordPage() {
 
       const clip = await res.json();
       toast.success("Clip saved!");
+      // Prepare next clip name for if user comes back
+      setClipName(`Clip ${clipCountRef.current}`);
+      clipCountRef.current += 1;
       router.push(`/clips/${clip.id}`);
     } catch (err) {
       toast.error("Failed to save clip. Try again.");

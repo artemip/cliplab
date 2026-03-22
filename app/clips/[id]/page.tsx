@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Share2, Clock, Music } from "lucide-react";
@@ -10,7 +10,7 @@ import { Waveform } from "@/components/audio/waveform";
 import { Player } from "@/components/audio/player";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatTime } from "@/lib/format";
+import { formatTime, getRelativeTime } from "@/lib/format";
 import type { Clip } from "@/lib/db/schema";
 
 export default function ClipDetailPage() {
@@ -23,8 +23,7 @@ export default function ClipDetailPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [looping, setLooping] = useState(false);
-  const audioRef = useState<HTMLAudioElement | null>(null);
-  const [audio] = audioRef;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -47,7 +46,7 @@ export default function ClipDetailPage() {
   useEffect(() => {
     if (!clip) return;
     const el = new Audio(`/api/clips/${clip.id}/audio`);
-    audioRef[1](el);
+    audioRef.current = el;
 
     el.ontimeupdate = () => setCurrentTime(el.currentTime);
     el.onended = () => {
@@ -64,26 +63,26 @@ export default function ClipDetailPage() {
   }, [clip]);
 
   const handlePlay = () => {
-    if (!audio) return;
-    audio.loop = looping;
-    audio.play();
+    if (!audioRef.current) return;
+    audioRef.current.loop = looping;
+    audioRef.current.play().catch(() => {});
   };
 
   const handleStop = () => {
-    if (!audio) return;
-    audio.pause();
+    if (!audioRef.current) return;
+    audioRef.current.pause();
   };
 
   const handleSeek = (pos: number) => {
-    if (!audio || !clip) return;
-    audio.currentTime = pos * clip.duration;
-    setCurrentTime(audio.currentTime);
+    if (!audioRef.current || !clip) return;
+    audioRef.current.currentTime = pos * clip.duration;
+    setCurrentTime(audioRef.current.currentTime);
   };
 
   const handleToggleLoop = () => {
     const next = !looping;
     setLooping(next);
-    if (audio) audio.loop = next;
+    if (audioRef.current) audioRef.current.loop = next;
   };
 
   const handleShare = async () => {
@@ -206,17 +205,4 @@ export default function ClipDetailPage() {
       </div>
     </main>
   );
-}
-
-function getRelativeTime(date: Date | string | number): string {
-  const now = Date.now();
-  const then = new Date(date).getTime();
-  const diff = now - then;
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }
