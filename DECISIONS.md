@@ -80,6 +80,10 @@ Tapping the mic button requests permission AND starts recording in one action. N
 
 Three one-tap presets (Warm Vocal, Lo-Fi Radio, Ambient Space) configure multiple filters at once. A beginner taps "Warm Vocal" and hears compression + reverb applied instantly — no need to understand what "threshold" or "ratio" mean. Individual sliders remain available for power users who want fine control. Lower the floor, raise the ceiling.
 
+### Duplicate clip names allowed
+
+We don't enforce unique clip names. A user might record three takes of the same melody and name them all "Morning melody" — the content is clearly different on listen, and the short nanoid IDs in URLs distinguish them. Forcing unique names would add friction to the creative flow for zero user benefit. Names are identifiers for humans, not keys for machines.
+
 ### Two AudioEngine instances on the record page
 
 One engine handles live mic monitoring during recording (connected to the MediaStream). A separate engine (via `useAudioEngine` hook) handles playback with filters after recording stops. This avoids conflicts between the recording and playback audio graphs — they have different sources, different filter chains, and different destinations.
