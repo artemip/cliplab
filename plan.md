@@ -38,7 +38,7 @@ Every PR goes through 4 agent reviewers (Wei-Lin/arena, Alex/user, design, code-
 
 Each item below is a PR. Each PR is independently testable, shippable, and goes through agent review. Ordered by dependency.
 
-Status legend: `[x]` not started, `[~]` in progress, `[x]` done
+Status legend: `[ ]` not started, `[~]` in progress, `[x]` done
 
 ---
 
@@ -235,14 +235,14 @@ Test keyboard shortcuts (correct behavior, disabled in inputs). Test error state
 
 ## Stretch PRs (if ahead of schedule)
 
-### PR S1: Drag-to-scrub on waveform `[x]`
+### PR S1: Drag-to-scrub on waveform `[ ]`
 Pointer-drag seeking via `pointerdown` + `pointermove`. Audio plays at scrub position. Blocked by: PR 5.
 
-### PR S2: Signal chain visualization `[x]`
+### PR S2: Signal chain visualization `[ ]`
 `Input → [active filters] → Output` flow indicator, active lit amber. Above filter rack. Blocked by: PR 5.
 
-### PR S4: Pre-seeded demo clip `[x]`
+### PR S4: Pre-seeded demo clip `[ ]`
 Seed script generates WAV + applies delay, inserts into DB. `pnpm db:seed`. Blocked by: PR 7.
 
-### PR S5: Waveform amplitude glow `[x]`
+### PR S5: Waveform amplitude glow `[ ]`
 Canvas glow intensity scales w/ current amplitude. Brighter on peaks, dim on silence. Blocked by: PR 3.
