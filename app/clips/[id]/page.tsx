@@ -76,8 +76,11 @@ export default function ClipDetailPage() {
   }, [clip]);
 
   const handlePlay = async () => {
-    if (!blobRef.current) return;
-    await engine.play(blobRef.current);
+    // In edit mode, play from raw audio so filter toggles work correctly.
+    // In view mode, play the rendered (pre-filtered) audio.
+    const blob = editing && rawBlobRef.current ? rawBlobRef.current : blobRef.current;
+    if (!blob) return;
+    await engine.play(blob);
   };
 
   const handleSeek = (pos: number) => {
@@ -259,6 +262,7 @@ export default function ClipDetailPage() {
             </Button>
             <button
               onClick={() => {
+                engine.stop();
                 setEditing(false);
                 for (const f of engine.filters) {
                   if (f.enabled) engine.toggleFilter(f.definition.id);
@@ -274,6 +278,8 @@ export default function ClipDetailPage() {
           <>
             <button
               onClick={() => {
+                // Stop playback — source switches from rendered to raw
+                engine.stop();
                 setEditName(clip.name);
                 if (filterConfig) {
                   for (const fc of filterConfig) {
