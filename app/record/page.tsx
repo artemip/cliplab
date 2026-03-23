@@ -156,6 +156,13 @@ export default function RecordPage() {
 
   const isLive = recorder.status === "recording" || recorder.status === "ready";
   const isStopped = recorder.status === "stopped";
+
+  // Stop playback when leaving the stopped state (reset / re-record)
+  useEffect(() => {
+    if (!isStopped && engine.isPlaying) {
+      engine.stop();
+    }
+  }, [isStopped]);
   const displayPeaks = isStopped ? recordedPeaks : null;
   const progress = engine.duration > 0 ? engine.currentTime / engine.duration : 0;
 
