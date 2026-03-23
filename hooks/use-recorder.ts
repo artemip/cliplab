@@ -43,15 +43,21 @@ export function useRecorder(): UseRecorderReturn {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Cleanup on unmount — stop recorder, timer, and stream tracks
+  // Clean up stream tracks when component unmounts (not on stream change —
+  // the recorder manages its own start/stop lifecycle)
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (
-        mediaRecorderRef.current &&
-        mediaRecorderRef.current.state !== "inactive"
-      ) {
-        mediaRecorderRef.current.stop();
-      }
+      // Note: we do NOT stop the MediaRecorder here. When the stream
+      // changes (null → granted), the previous cleanup runs while the
+      // new recorder is already started — stopping it would kill the
+      // recording instantly. Recorder cleanup happens in stopRecording().
+    };
+  }, []);
+
+  // Stop stream tracks on unmount only
+  useEffect(() => {
+    return () => {
       if (stream) {
         for (const track of stream.getTracks()) track.stop();
       }
