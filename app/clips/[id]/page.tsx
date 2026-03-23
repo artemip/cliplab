@@ -234,7 +234,7 @@ export default function ClipDetailPage() {
       </div>
 
       {/* Action bar — transforms between view and edit mode */}
-      <div className="mb-4 flex items-center gap-1.5">
+      <div className="mb-4 flex items-center justify-end gap-1.5">
         {editing ? (
           <>
             <Button
