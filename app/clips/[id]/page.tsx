@@ -60,14 +60,19 @@ export default function ClipDetailPage() {
   }, [id]);
 
   // Fetch audio blobs for playback + editing
+  const clipId = clip?.id;
   useEffect(() => {
-    if (!clip) return;
+    if (!clipId) return;
     (async () => {
       try {
         const [audioRes, rawRes] = await Promise.all([
-          fetch(`/api/clips/${clip.id}/audio`),
-          fetch(`/api/clips/${clip.id}/raw`).catch(() => null),
+          fetch(`/api/clips/${clipId}/audio`),
+          fetch(`/api/clips/${clipId}/raw`).catch(() => null),
         ]);
+        if (!audioRes.ok) {
+          setAudioError(true);
+          return;
+        }
         blobRef.current = await audioRes.blob();
         if (rawRes?.ok) {
           rawBlobRef.current = await rawRes.blob();
@@ -76,7 +81,7 @@ export default function ClipDetailPage() {
         setAudioError(true);
       }
     })();
-  }, [clip]);
+  }, [clipId]);
 
   const handlePlay = async () => {
     // In edit mode, play from raw audio so filter toggles work correctly.
@@ -217,7 +222,7 @@ export default function ClipDetailPage() {
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="w-full bg-transparent text-xl font-semibold text-[var(--text-primary)] border-b border-[var(--border-default)] pb-1 outline-none focus-visible:border-[var(--accent)]"
+              className="w-full rounded bg-transparent text-xl font-semibold text-[var(--text-primary)] border-b border-[var(--border-default)] pb-1 outline-none focus-visible:border-[var(--accent)] focus-visible:shadow-[var(--focus-ring)]"
               aria-label="Clip name"
             />
           ) : (
@@ -319,7 +324,7 @@ export default function ClipDetailPage() {
         <Waveform
           mode="static"
           peaks={peaks}
-          progress={engine.isPlaying ? progress : 0}
+          progress={progress}
           onSeek={handleSeek}
           height={140}
         />
@@ -340,7 +345,7 @@ export default function ClipDetailPage() {
 
       {/* Audio load error */}
       {audioError && (
-        <div className="mb-4 rounded-lg border border-[var(--destructive)]/20 bg-[var(--destructive-surface)] px-4 py-3 text-center text-sm text-[var(--destructive)]">
+        <div className="mb-4 rounded-lg border border-[var(--destructive-surface)] bg-[var(--destructive-surface)] px-4 py-3 text-center text-sm text-[var(--destructive)]">
           Could not load audio. Playback may not work.
         </div>
       )}

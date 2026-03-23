@@ -129,7 +129,7 @@ export default function FeedPage() {
 
       {/* Error */}
       {error && (
-        <div className="rounded-xl border border-[var(--destructive)]/20 bg-[var(--destructive-surface)] px-6 py-8 text-center">
+        <div className="rounded-xl border border-[var(--destructive-surface)] bg-[var(--destructive-surface)] px-6 py-8 text-center">
           <p className="text-sm text-[var(--destructive)]">{error}</p>
           <button
             onClick={() => window.location.reload()}

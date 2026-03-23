@@ -172,10 +172,10 @@ export default function RecordPage() {
 
   // Stop playback when leaving the stopped state (reset / re-record)
   useEffect(() => {
-    if (!isStopped && engine.isPlaying) {
+    if (!isStopped) {
       engine.stop();
     }
-  }, [isStopped]);
+  }, [isStopped, engine.stop]);
   const displayPeaks = isStopped ? recordedPeaks : null;
   const progress = engine.duration > 0 ? engine.currentTime / engine.duration : 0;
 

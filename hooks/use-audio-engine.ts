@@ -195,16 +195,6 @@ export function useAudioEngine(): UseAudioEngineReturn {
     setIsPlaying(true);
   }
 
-  function restartPlayback() {
-    const buffer = audioBufferRef.current;
-    if (!buffer) return;
-    const engine = engineRef.current;
-    if (!engine) return;
-
-    const elapsed = engine.context.currentTime - startTimeRef.current + offsetRef.current;
-    startPlayback(buffer, elapsed);
-  }
-
   function rebuildWithFilters(filterStates: FilterState[]) {
     const engine = engineRef.current;
     if (!engine) return;

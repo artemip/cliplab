@@ -62,7 +62,7 @@ export function RecorderControls({
   // Error state — actionable recovery
   if (status === "error") {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-xl border border-[var(--destructive)]/20 bg-[var(--destructive-surface)] px-6 py-8 text-center">
+      <div className="flex flex-col items-center gap-4 rounded-xl border border-[var(--destructive-surface)] bg-[var(--destructive-surface)] px-6 py-8 text-center">
         <AlertCircle
           className="h-8 w-8 text-[var(--destructive)]"
           aria-hidden="true"
@@ -117,7 +117,7 @@ export function RecorderControls({
             >
               <Headphones className="h-5 w-5" aria-hidden="true" />
             </button>
-            <span className="text-[10px] text-[var(--text-tertiary)]">
+            <span className="text-xs text-[var(--text-tertiary)]">
               Monitor
             </span>
           </div>

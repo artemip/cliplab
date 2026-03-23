@@ -74,3 +74,11 @@ export async function getClipAudioPath(id: string) {
   const filepath = path.join(UPLOADS_DIR, clip.filename);
   return existsSync(filepath) ? filepath : null;
 }
+
+export async function getClipRawAudioPath(id: string) {
+  const clip = await getClip(id);
+  if (!clip?.rawFilename) return null;
+
+  const filepath = path.join(UPLOADS_DIR, clip.rawFilename);
+  return existsSync(filepath) ? filepath : null;
+}

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createClip, listClips, getClip, getClipAudioPath } from "@/lib/api/clips";
+import { createClip, listClips, getClip, getClipAudioPath, getClipRawAudioPath } from "@/lib/api/clips";
 import { createClipSchema, clipListParamsSchema } from "@/lib/schemas/clips";
 import { readFile } from "fs/promises";
 
@@ -35,13 +35,10 @@ clips.get("/:id/audio", async (c) => {
 });
 
 clips.get("/:id/raw", async (c) => {
-  const clip = await getClip(c.req.param("id"));
-  if (!clip?.rawFilename) return c.json({ error: "Raw audio not available" }, 404);
+  const rawPath = await getClipRawAudioPath(c.req.param("id"));
+  if (!rawPath) return c.json({ error: "Raw audio not available" }, 404);
 
-  const rawPath = (await import("path")).join(process.cwd(), "uploads", clip.rawFilename);
-  const data = await readFile(rawPath).catch(() => null);
-  if (!data) return c.json({ error: "Raw audio not found" }, 404);
-
+  const data = await readFile(rawPath);
   return new Response(data, {
     headers: {
       "Content-Length": String(data.byteLength),
