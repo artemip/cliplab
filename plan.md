@@ -38,11 +38,11 @@ Every PR goes through 4 agent reviewers (Wei-Lin/arena, Alex/user, design, code-
 
 Each item below is a PR. Each PR is independently testable, shippable, and goes through agent review. Ordered by dependency.
 
-Status legend: `[ ]` not started, `[~]` in progress, `[x]` done
+Status legend: `[x]` not started, `[~]` in progress, `[x]` done
 
 ---
 
-## PR 1: Audio engine + filter tests `[ ]`
+## PR 1: Audio engine + filter tests `[x]`
 > The core abstraction Arena will scrutinize. Must be clean, composable, testable.
 
 **Build:**
@@ -65,7 +65,7 @@ Extensive unit tests for all audio lib code. Use real `OfflineAudioContext` (not
 
 ---
 
-## PR 2: shadcn/ui components + design token polish `[ ]`
+## PR 2: shadcn/ui components + design token polish `[x]`
 > Foundation for all UI work. Must land before any component PRs.
 
 **Build:**
@@ -87,7 +87,7 @@ Unit tests for custom button variants (accent, destructive). Verify correct clas
 
 ---
 
-## PR 3: Waveform canvas component `[ ]`
+## PR 3: Waveform canvas component `[x]`
 > The visual centerpiece. Needed by both recording and playback.
 
 **Build:**
@@ -113,7 +113,7 @@ Test that canvas renders without error for both modes. Test click-to-seek fires 
 
 ---
 
-## PR 4: Recording flow — use-recorder hook + recorder-controls `[ ]`
+## PR 4: Recording flow — use-recorder hook + recorder-controls `[x]`
 > Mic → record → stop → raw Blob. No filters yet.
 
 **Build:**
@@ -135,7 +135,7 @@ Test the recorder hook state machine thoroughly — valid transitions, invalid t
 
 ---
 
-## PR 5: Filter rack + use-audio-engine hook `[ ]`
+## PR 5: Filter rack + use-audio-engine hook `[x]`
 > The interaction magic. Toggle filters, hear the difference instantly.
 
 **Build:**
@@ -159,7 +159,7 @@ Test the engine hook's state management: filter toggling, param updates, reset, 
 
 ---
 
-## PR 6: Upload flow + clip detail page `[ ]`
+## PR 6: Upload flow + clip detail page `[x]`
 > Complete the record → upload → share loop.
 
 **Build:**
@@ -182,7 +182,7 @@ Test API business logic (createClip, listClips, getClip) and Hono route handlers
 
 ---
 
-## PR 7: Feed page + inline playback `[ ]`
+## PR 7: Feed page + inline playback `[x]`
 > Browse and listen without navigating to detail.
 
 **Build:**
@@ -206,7 +206,7 @@ Test clip card renders all fields, play button fires callback without navigating
 
 ---
 
-## PR 8: Polish — error states, responsive, keyboard, README `[ ]`
+## PR 8: Polish — error states, responsive, keyboard, README `[x]`
 > Final quality pass. Every rough edge filed down.
 
 **Build:**
@@ -235,14 +235,14 @@ Test keyboard shortcuts (correct behavior, disabled in inputs). Test error state
 
 ## Stretch PRs (if ahead of schedule)
 
-### PR S1: Drag-to-scrub on waveform `[ ]`
+### PR S1: Drag-to-scrub on waveform `[x]`
 Pointer-drag seeking via `pointerdown` + `pointermove`. Audio plays at scrub position. Blocked by: PR 5.
 
-### PR S2: Signal chain visualization `[ ]`
+### PR S2: Signal chain visualization `[x]`
 `Input → [active filters] → Output` flow indicator, active lit amber. Above filter rack. Blocked by: PR 5.
 
-### PR S4: Pre-seeded demo clip `[ ]`
+### PR S4: Pre-seeded demo clip `[x]`
 Seed script generates WAV + applies delay, inserts into DB. `pnpm db:seed`. Blocked by: PR 7.
 
-### PR S5: Waveform amplitude glow `[ ]`
+### PR S5: Waveform amplitude glow `[x]`
 Canvas glow intensity scales w/ current amplitude. Brighter on peaks, dim on silence. Blocked by: PR 3.
