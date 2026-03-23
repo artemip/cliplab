@@ -177,6 +177,32 @@ export default function RecordPage() {
         Back to clips
       </Link>
 
+      {/* Name + Save (top of clip, only when stopped) */}
+      {isStopped && (
+        <div className="mb-4 flex items-center gap-3 border-b border-[var(--border-default)] pb-4">
+          <Input
+            value={clipName}
+            onChange={(e) => setClipName(e.target.value)}
+            placeholder="Name your clip"
+            className="flex-1"
+            aria-label="Clip name"
+          />
+          <Button
+            variant="accent"
+            size="lg"
+            onClick={handleUpload}
+            disabled={uploading || !clipName.trim()}
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Upload className="h-4 w-4" aria-hidden="true" />
+            )}
+            {uploading ? "Saving..." : "Save"}
+          </Button>
+        </div>
+      )}
+
       {/* Waveform */}
       <div className="mb-4">
         {isLive ? (
@@ -245,31 +271,6 @@ export default function RecordPage() {
         </div>
       )}
 
-      {/* Save clip (only when stopped — after filters are configured) */}
-      {isStopped && (
-        <div className="flex items-center gap-3">
-          <Input
-            value={clipName}
-            onChange={(e) => setClipName(e.target.value)}
-            placeholder="Name your clip"
-            className="flex-1"
-            aria-label="Clip name"
-          />
-          <Button
-            variant="accent"
-            size="lg"
-            onClick={handleUpload}
-            disabled={uploading || !clipName.trim()}
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Upload className="h-4 w-4" aria-hidden="true" />
-            )}
-            {uploading ? "Saving..." : "Save clip"}
-          </Button>
-        </div>
-      )}
     </main>
   );
 }

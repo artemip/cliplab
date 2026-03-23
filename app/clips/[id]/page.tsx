@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Share2, Clock, Music } from "lucide-react";
@@ -53,23 +53,38 @@ export default function ClipDetailPage() {
     })();
   }, [id]);
 
-  // Simple HTML Audio playback
+  // HTML Audio playback with rAF for smooth progress
+  const progressRafRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!clip) return;
     const el = new Audio(`/api/clips/${clip.id}/audio`);
     audioRef.current = el;
 
-    el.ontimeupdate = () => setCurrentTime(el.currentTime);
     el.onended = () => {
       setIsPlaying(false);
       setCurrentTime(0);
     };
-    el.onpause = () => setIsPlaying(false);
-    el.onplay = () => setIsPlaying(true);
+    el.onpause = () => {
+      setIsPlaying(false);
+      if (progressRafRef.current) cancelAnimationFrame(progressRafRef.current);
+    };
+    el.onplay = () => {
+      setIsPlaying(true);
+      // Smooth progress via rAF (not ontimeupdate which fires ~4x/sec)
+      const tick = () => {
+        if (audioRef.current) {
+          setCurrentTime(audioRef.current.currentTime);
+        }
+        progressRafRef.current = requestAnimationFrame(tick);
+      };
+      progressRafRef.current = requestAnimationFrame(tick);
+    };
 
     return () => {
       el.pause();
       el.src = "";
+      if (progressRafRef.current) cancelAnimationFrame(progressRafRef.current);
     };
   }, [clip]);
 
