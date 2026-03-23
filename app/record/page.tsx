@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Upload, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRecorder } from "@/hooks/use-recorder";
 import { useAudioEngine } from "@/hooks/use-audio-engine";
@@ -170,18 +170,32 @@ export default function RecordPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      {/* Header */}
-      <Link
-        href="/"
-        className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to clips
-      </Link>
+      {/* Header — confirms if unsaved recording exists */}
+      {isStopped ? (
+        <button
+          onClick={() => {
+            if (window.confirm("Leave without saving? Your recording will be lost.")) {
+              router.push("/");
+            }
+          }}
+          className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to clips
+        </button>
+      ) : (
+        <Link
+          href="/"
+          className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to clips
+        </Link>
+      )}
 
-      {/* Name + Save (top of clip, only when stopped) */}
+      {/* Name + Save + Discard (top bar, only when stopped) */}
       {isStopped && (
-        <div className="mb-4 flex items-center gap-3 border-b border-[var(--border-default)] pb-4">
+        <div className="mb-4 flex items-center gap-2 border-b border-[var(--border-default)] pb-4">
           <Input
             value={clipName}
             onChange={(e) => setClipName(e.target.value)}
@@ -202,6 +216,17 @@ export default function RecordPage() {
             )}
             {uploading ? "Saving..." : "Save"}
           </Button>
+          <button
+            onClick={() => {
+              if (window.confirm("Discard this recording?")) {
+                recorder.reset();
+              }
+            }}
+            className="flex min-h-[44px] items-center justify-center rounded-lg px-2 text-[var(--text-tertiary)] transition-colors hover:text-[var(--destructive)] active:scale-95"
+            aria-label="Discard recording"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
       )}
 

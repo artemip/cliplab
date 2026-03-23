@@ -156,10 +156,6 @@ export function RecorderControls({
           </button>
         )}
 
-        {/* Discard button (only when stopped) — with confirmation */}
-        {status === "stopped" && (
-          <DiscardWithConfirm onConfirm={onReset} />
-        )}
       </div>
 
       {/* Status text */}

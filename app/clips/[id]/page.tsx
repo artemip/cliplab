@@ -202,9 +202,9 @@ export default function ClipDetailPage() {
         Back to clips
       </Link>
 
-      {/* Metadata + share */}
-      <div className="mb-4 flex items-start justify-between">
-        <div>
+      {/* Title + actions row */}
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="flex-1">
           <h1 className="text-xl font-semibold text-balance">{clip.name}</h1>
           <div className="mt-1 flex items-center gap-3 text-xs text-[var(--text-secondary)]">
             <span className="flex items-center gap-1 tabular-nums">
@@ -213,45 +213,46 @@ export default function ClipDetailPage() {
             </span>
             <span>{timeAgo}</span>
           </div>
+          {/* Filter badges */}
+          {filterConfig && filterConfig.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {filterConfig.map((f) => (
+                <Badge key={f.id} variant="secondary" className="text-xs">
+                  {filterDisplayNames[f.id] || f.id}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
-        <button
-          onClick={handleShare}
-          className={cn(
-            "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
-            "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
-            "transition-colors hover:text-[var(--text-primary)] active:scale-95",
-            "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-          )}
-          aria-label="Share — copy link"
-        >
-          <Share2 className="h-4 w-4" aria-hidden="true" />
-          Share
-        </button>
-        <button
-          onClick={handleDownload}
-          className={cn(
-            "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
-            "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
-            "transition-colors hover:text-[var(--text-primary)] active:scale-95",
-            "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-          )}
-          aria-label="Download clip"
-        >
-          <Download className="h-4 w-4" aria-hidden="true" />
-        </button>
+        {/* Share + Download together */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleShare}
+            className={cn(
+              "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
+              "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
+              "transition-colors hover:text-[var(--text-primary)] active:scale-95",
+              "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            )}
+            aria-label="Share — copy link"
+          >
+            <Share2 className="h-4 w-4" aria-hidden="true" />
+            Share
+          </button>
+          <button
+            onClick={handleDownload}
+            className={cn(
+              "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
+              "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
+              "transition-colors hover:text-[var(--text-primary)] active:scale-95",
+              "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            )}
+            aria-label="Download clip"
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
-
-      {/* Filter badges (original filters) */}
-      {filterConfig && filterConfig.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          <Music className="h-3.5 w-3.5 text-[var(--text-tertiary)] mt-0.5" aria-hidden="true" />
-          {filterConfig.map((f) => (
-            <Badge key={f.id} variant="secondary" className="text-xs">
-              {filterDisplayNames[f.id] || f.id}
-            </Badge>
-          ))}
-        </div>
-      )}
 
       {/* Waveform */}
       <div className="mb-4">
@@ -280,21 +281,52 @@ export default function ClipDetailPage() {
       {/* Edit toggle */}
       <div className="mb-4">
         <button
-          onClick={() => setEditing(!editing)}
+          onClick={() => {
+            if (!editing && filterConfig) {
+              // Pre-apply saved filter config when entering edit mode
+              for (const fc of filterConfig) {
+                engine.toggleFilter(fc.id);
+                for (const [key, val] of Object.entries(fc.params)) {
+                  engine.updateParam(fc.id, key, val);
+                }
+              }
+            }
+            setEditing(!editing);
+          }}
           className={cn(
-            "text-sm transition-colors",
+            "text-sm font-medium transition-colors",
             editing
               ? "text-[var(--accent)] hover:text-[var(--accent-hover)]"
               : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           )}
         >
-          {editing ? "Hide filters" : "Add effects →"}
+          {editing ? "Done editing" : "Edit →"}
         </button>
       </div>
 
-      {/* Filter rack (editing mode) */}
+      {/* Filter rack + save controls (editing mode) */}
       {editing && (
         <>
+          {/* Save controls at top of edit area */}
+          {hasActiveFilters && (
+            <div className="mb-4 flex gap-2">
+              <Button
+                variant="accent"
+                size="lg"
+                onClick={handleSaveEdited}
+                disabled={saving}
+                className="flex-1"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Save className="h-4 w-4" aria-hidden="true" />
+                )}
+                {saving ? "Saving..." : "Save as new clip"}
+              </Button>
+            </div>
+          )}
+
           <div className="mb-4">
             <FilterRack
               filters={engine.filters}
@@ -308,23 +340,6 @@ export default function ClipDetailPage() {
               onApplyPreset={engine.applyPreset}
             />
           </div>
-
-          {hasActiveFilters && (
-            <Button
-              variant="accent"
-              size="lg"
-              onClick={handleSaveEdited}
-              disabled={saving}
-              className="w-full"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Save className="h-4 w-4" aria-hidden="true" />
-              )}
-              {saving ? "Saving new version..." : "Save as new clip"}
-            </Button>
-          )}
         </>
       )}
     </main>
