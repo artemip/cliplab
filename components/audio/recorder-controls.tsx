@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Mic, Square, Headphones, RotateCcw, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTimePrecise } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { RecorderStatus } from "@/hooks/use-recorder";
 
 interface RecorderControlsProps {
@@ -103,20 +105,24 @@ export function RecorderControls({
       <div className="flex items-center gap-4">
         {/* Monitor toggle */}
         {onToggleMonitor && (
-          <button
-            onClick={onToggleMonitor}
-            className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full transition-all active:scale-95",
-              "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
-              monitorEnabled
-                ? "bg-[var(--accent-surface)] text-[var(--accent)]"
-                : "bg-[var(--bg-interactive)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-            )}
-            aria-label={monitorEnabled ? "Disable headphone monitoring" : "Enable headphone monitoring"}
-            title={monitorEnabled ? "Monitoring on" : "Monitoring off"}
-          >
-            <Headphones className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={onToggleMonitor}
+              className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-full transition-all active:scale-95",
+                "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
+                monitorEnabled
+                  ? "bg-[var(--accent-surface)] text-[var(--accent)]"
+                  : "bg-[var(--bg-interactive)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+              )}
+              aria-label={monitorEnabled ? "Disable headphone monitoring" : "Enable headphone monitoring"}
+            >
+              <Headphones className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <span className="text-[10px] text-[var(--text-tertiary)]">
+              Monitor
+            </span>
+          </div>
         )}
 
         {/* Record / Stop button */}
@@ -150,20 +156,9 @@ export function RecorderControls({
           </button>
         )}
 
-        {/* Reset button (only when stopped) */}
+        {/* Discard button (only when stopped) — with confirmation */}
         {status === "stopped" && (
-          <button
-            onClick={onReset}
-            className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full",
-              "bg-[var(--bg-interactive)] text-[var(--text-tertiary)]",
-              "transition-all hover:text-[var(--text-secondary)] active:scale-95",
-              "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-            )}
-            aria-label="Discard recording"
-          >
-            <RotateCcw className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <DiscardWithConfirm onConfirm={onReset} />
         )}
       </div>
 
@@ -176,5 +171,50 @@ export function RecorderControls({
             : "Ready to record"}
       </p>
     </div>
+  );
+}
+
+function DiscardWithConfirm({ onConfirm }: { onConfirm: () => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className={cn(
+          "flex h-11 w-11 items-center justify-center rounded-full",
+          "bg-[var(--bg-interactive)] text-[var(--text-tertiary)]",
+          "transition-all hover:text-[var(--text-secondary)] active:scale-95",
+          "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        )}
+        aria-label="Discard recording"
+      >
+        <RotateCcw className="h-5 w-5" aria-hidden="true" />
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogTitle>Discard recording?</DialogTitle>
+          <DialogDescription>
+            This will delete your current recording. This can&apos;t be undone.
+          </DialogDescription>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                onConfirm();
+                setOpen(false);
+              }}
+            >
+              Discard
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

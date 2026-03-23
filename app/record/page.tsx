@@ -99,6 +99,8 @@ export default function RecordPage() {
       // Build form data
       const formData = new FormData();
       formData.append("audio", wavBlob, `${clipName}.wav`);
+      // Include raw (unfiltered) audio so the clip can be re-edited later
+      formData.append("raw", recorder.blob, `${clipName}_raw.wav`);
       formData.append("name", clipName);
       formData.append("duration", String(rendered.duration));
       const activeFilters = engine.filters

@@ -10,7 +10,11 @@ import type { CreateClipInput } from "@/lib/schemas/clips";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 
-export async function createClip(file: File, input: CreateClipInput) {
+export async function createClip(
+  file: File,
+  input: CreateClipInput,
+  rawFile?: File
+) {
   await mkdir(UPLOADS_DIR, { recursive: true });
 
   const id = nanoid(8);
@@ -19,6 +23,14 @@ export async function createClip(file: File, input: CreateClipInput) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(filepath, buffer);
+
+  // Save raw (unfiltered) audio if provided — enables re-editing
+  let rawFilename: string | null = null;
+  if (rawFile) {
+    rawFilename = `${id}_raw.wav`;
+    const rawBuffer = Buffer.from(await rawFile.arrayBuffer());
+    await writeFile(path.join(UPLOADS_DIR, rawFilename), rawBuffer);
+  }
 
   const peaks = generatePeaksFromWav(buffer);
 
@@ -29,6 +41,7 @@ export async function createClip(file: File, input: CreateClipInput) {
       name: input.name,
       duration: input.duration,
       filename,
+      rawFilename,
       peaks,
       filterConfig: input.filterConfig ?? null,
       createdAt: new Date(),

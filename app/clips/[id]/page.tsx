@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Share2, Clock, Music, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Share2, Clock, Music, Save, Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Waveform } from "@/components/audio/waveform";
@@ -34,6 +34,7 @@ export default function ClipDetailPage() {
 
   const engine = useAudioEngine();
   const blobRef = useRef<Blob | null>(null);
+  const rawBlobRef = useRef<Blob | null>(null);
 
   // Fetch clip data
   useEffect(() => {
@@ -54,16 +55,21 @@ export default function ClipDetailPage() {
     })();
   }, [id]);
 
-  // Fetch the audio blob for the engine
+  // Fetch audio blobs for playback + editing
   useEffect(() => {
     if (!clip) return;
     (async () => {
       try {
-        const res = await fetch(`/api/clips/${clip.id}/audio`);
-        const blob = await res.blob();
-        blobRef.current = blob;
+        const [audioRes, rawRes] = await Promise.all([
+          fetch(`/api/clips/${clip.id}/audio`),
+          fetch(`/api/clips/${clip.id}/raw`).catch(() => null),
+        ]);
+        blobRef.current = await audioRes.blob();
+        if (rawRes?.ok) {
+          rawBlobRef.current = await rawRes.blob();
+        }
       } catch {
-        // Audio fetch failed — playback still works via HTML Audio fallback
+        // Fetch failed — playback may not work
       }
     })();
   }, [clip]);
@@ -86,15 +92,30 @@ export default function ClipDetailPage() {
     }
   };
 
-  const handleSaveEdited = async () => {
+  const handleDownload = () => {
     if (!blobRef.current || !clip) return;
+    const url = URL.createObjectURL(blobRef.current);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${clip.name}.wav`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSaveEdited = async () => {
+    // Use raw audio if available (re-render from unfiltered source)
+    const sourceBlob = rawBlobRef.current || blobRef.current;
+    if (!sourceBlob || !clip) return;
     setSaving(true);
     try {
-      const rendered = await engine.renderWithFilters(blobRef.current);
+      const rendered = await engine.renderWithFilters(sourceBlob);
       const wavBlob = audioBufferToWav(rendered);
 
       const formData = new FormData();
       formData.append("audio", wavBlob, `${clip.name}.wav`);
+      if (rawBlobRef.current) {
+        formData.append("raw", rawBlobRef.current, `${clip.name}_raw.wav`);
+      }
       formData.append("name", clip.name);
       formData.append("duration", String(rendered.duration));
       const activeFilters = engine.filters
@@ -205,6 +226,18 @@ export default function ClipDetailPage() {
         >
           <Share2 className="h-4 w-4" aria-hidden="true" />
           Share
+        </button>
+        <button
+          onClick={handleDownload}
+          className={cn(
+            "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
+            "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
+            "transition-colors hover:text-[var(--text-primary)] active:scale-95",
+            "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          )}
+          aria-label="Download clip"
+        >
+          <Download className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
 

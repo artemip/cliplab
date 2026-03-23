@@ -34,6 +34,22 @@ clips.get("/:id/audio", async (c) => {
   });
 });
 
+clips.get("/:id/raw", async (c) => {
+  const clip = await getClip(c.req.param("id"));
+  if (!clip?.rawFilename) return c.json({ error: "Raw audio not available" }, 404);
+
+  const rawPath = (await import("path")).join(process.cwd(), "uploads", clip.rawFilename);
+  const data = await readFile(rawPath).catch(() => null);
+  if (!data) return c.json({ error: "Raw audio not found" }, 404);
+
+  return new Response(data, {
+    headers: {
+      "Content-Length": String(data.byteLength),
+      "Content-Type": "audio/wav",
+    },
+  });
+});
+
 clips.post("/", async (c) => {
   const formData = await c.req.formData();
   const audioFile = formData.get("audio");
@@ -51,7 +67,12 @@ clips.post("/", async (c) => {
     filterConfig: filterConfig?.toString(),
   });
 
-  const clip = await createClip(audioFile, parsed);
+  const rawFile = formData.get("raw");
+  const clip = await createClip(
+    audioFile,
+    parsed,
+    rawFile instanceof File ? rawFile : undefined
+  );
   return c.json(clip, 201);
 });
 
