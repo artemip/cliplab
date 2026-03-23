@@ -247,7 +247,7 @@ export default function ClipDetailPage() {
               {saving ? "Saving..." : "Save"}
             </Button>
             <Button
-              variant="accent"
+              variant="outline"
               size="lg"
               onClick={handleSaveEdited}
               disabled={saving}
