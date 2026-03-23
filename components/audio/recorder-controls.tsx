@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, Square, Headphones, RotateCcw, AlertCircle } from "lucide-react";
+import { Mic, Square, Headphones, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTimePrecise } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -62,7 +62,7 @@ export function RecorderControls({
   // Error state — actionable recovery
   if (status === "error") {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-xl border border-[var(--destructive)]/20 bg-[var(--destructive-surface)] px-6 py-8 text-center">
+      <div className="flex flex-col items-center gap-4 rounded-xl border border-[var(--destructive-surface)] bg-[var(--destructive-surface)] px-6 py-8 text-center">
         <AlertCircle
           className="h-8 w-8 text-[var(--destructive)]"
           aria-hidden="true"
@@ -103,20 +103,24 @@ export function RecorderControls({
       <div className="flex items-center gap-4">
         {/* Monitor toggle */}
         {onToggleMonitor && (
-          <button
-            onClick={onToggleMonitor}
-            className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full transition-all active:scale-95",
-              "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
-              monitorEnabled
-                ? "bg-[var(--accent-surface)] text-[var(--accent)]"
-                : "bg-[var(--bg-interactive)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-            )}
-            aria-label={monitorEnabled ? "Disable headphone monitoring" : "Enable headphone monitoring"}
-            title={monitorEnabled ? "Monitoring on" : "Monitoring off"}
-          >
-            <Headphones className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={onToggleMonitor}
+              className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-full transition-all active:scale-95",
+                "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
+                monitorEnabled
+                  ? "bg-[var(--accent-surface)] text-[var(--accent)]"
+                  : "bg-[var(--bg-interactive)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+              )}
+              aria-label={monitorEnabled ? "Disable headphone monitoring" : "Enable headphone monitoring"}
+            >
+              <Headphones className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <span className="text-xs text-[var(--text-tertiary)]">
+              Monitor
+            </span>
+          </div>
         )}
 
         {/* Record / Stop button */}
@@ -150,21 +154,6 @@ export function RecorderControls({
           </button>
         )}
 
-        {/* Reset button (only when stopped) */}
-        {status === "stopped" && (
-          <button
-            onClick={onReset}
-            className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full",
-              "bg-[var(--bg-interactive)] text-[var(--text-tertiary)]",
-              "transition-all hover:text-[var(--text-secondary)] active:scale-95",
-              "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-            )}
-            aria-label="Discard recording"
-          >
-            <RotateCcw className="h-5 w-5" aria-hidden="true" />
-          </button>
-        )}
       </div>
 
       {/* Status text */}

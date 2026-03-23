@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Upload, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRecorder } from "@/hooks/use-recorder";
 import { useAudioEngine } from "@/hooks/use-audio-engine";
@@ -13,6 +13,7 @@ import { Player } from "@/components/audio/player";
 import { FilterRack } from "@/components/audio/filter-rack";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AudioEngine } from "@/lib/audio/engine";
 import { generatePeaks, audioBufferToWav } from "@/lib/audio/utils";
 
@@ -23,7 +24,10 @@ export default function RecordPage() {
   const [liveAnalyserData, setLiveAnalyserData] = useState<Float32Array | null>(null);
   const [recordedPeaks, setRecordedPeaks] = useState<number[] | null>(null);
   const [clipName, setClipName] = useState("Clip 1");
+  const [liveMonitor, setLiveMonitor] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   const clipCountRef = useRef(2); // Next clip name after "Clip 1"
   const rafRef = useRef<number | null>(null);
   const router = useRouter();
@@ -98,6 +102,8 @@ export default function RecordPage() {
       // Build form data
       const formData = new FormData();
       formData.append("audio", wavBlob, `${clipName}.wav`);
+      // Include raw (unfiltered) audio so the clip can be re-edited later
+      formData.append("raw", recorder.blob, `${clipName}_raw.wav`);
       formData.append("name", clipName);
       formData.append("duration", String(rendered.duration));
       const activeFilters = engine.filters
@@ -155,19 +161,77 @@ export default function RecordPage() {
 
   const isLive = recorder.status === "recording" || recorder.status === "ready";
   const isStopped = recorder.status === "stopped";
+
+  // Warn before closing tab with unsaved recording
+  useEffect(() => {
+    if (!isStopped) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isStopped]);
+
+  // Stop playback when leaving the stopped state (reset / re-record)
+  useEffect(() => {
+    if (!isStopped) {
+      engine.stop();
+    }
+  }, [isStopped, engine.stop]);
   const displayPeaks = isStopped ? recordedPeaks : null;
   const progress = engine.duration > 0 ? engine.currentTime / engine.duration : 0;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      {/* Header */}
-      <Link
-        href="/"
-        className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to clips
-      </Link>
+      {/* Header — confirms if unsaved recording exists */}
+      {isStopped ? (
+        <button
+          onClick={() => setLeaveOpen(true)}
+          className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to clips
+        </button>
+      ) : (
+        <Link
+          href="/"
+          className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to clips
+        </Link>
+      )}
+
+      {/* Name + Save + Discard (top bar, only when stopped) */}
+      {isStopped && (
+        <div className="mb-4 flex items-center gap-2 border-b border-[var(--border-default)] pb-4">
+          <Input
+            value={clipName}
+            onChange={(e) => setClipName(e.target.value)}
+            placeholder="Name your clip"
+            className="flex-1"
+            aria-label="Clip name"
+          />
+          <Button
+            variant="accent"
+            size="lg"
+            onClick={handleUpload}
+            disabled={uploading || !clipName.trim()}
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Upload className="h-4 w-4" aria-hidden="true" />
+            )}
+            {uploading ? "Saving..." : "Save"}
+          </Button>
+          <button
+            onClick={() => setDiscardOpen(true)}
+            className="flex min-h-[44px] items-center justify-center rounded-lg px-2 text-[var(--text-tertiary)] transition-colors hover:text-[var(--destructive)] active:scale-95"
+            aria-label="Discard recording"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       {/* Waveform */}
       <div className="mb-4">
@@ -211,8 +275,12 @@ export default function RecordPage() {
           onStart={recorder.startRecording}
           onStop={recorder.stopRecording}
           onReset={recorder.reset}
-          monitorEnabled={engine.monitorEnabled}
-          onToggleMonitor={engine.toggleMonitor}
+          monitorEnabled={liveMonitor}
+          onToggleMonitor={() => {
+            const next = !liveMonitor;
+            setLiveMonitor(next);
+            liveEngineRef.current?.setMonitor(next);
+          }}
         />
       </div>
 
@@ -233,31 +301,22 @@ export default function RecordPage() {
         </div>
       )}
 
-      {/* Save clip (only when stopped — after filters are configured) */}
-      {isStopped && (
-        <div className="flex items-center gap-3">
-          <Input
-            value={clipName}
-            onChange={(e) => setClipName(e.target.value)}
-            placeholder="Name your clip"
-            className="flex-1"
-            aria-label="Clip name"
-          />
-          <Button
-            variant="accent"
-            size="lg"
-            onClick={handleUpload}
-            disabled={uploading || !clipName.trim()}
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Upload className="h-4 w-4" aria-hidden="true" />
-            )}
-            {uploading ? "Saving..." : "Save clip"}
-          </Button>
-        </div>
-      )}
+      <ConfirmDialog
+        open={leaveOpen}
+        onOpenChange={setLeaveOpen}
+        title="Leave without saving?"
+        description="Your recording will be lost."
+        confirmLabel="Leave"
+        onConfirm={() => router.push("/")}
+      />
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title="Discard recording?"
+        description="This will delete your current recording. This can't be undone."
+        confirmLabel="Discard"
+        onConfirm={() => recorder.reset()}
+      />
     </main>
   );
 }

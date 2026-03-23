@@ -97,12 +97,12 @@ describe("RecorderControls", () => {
   });
 
   describe("stopped state", () => {
-    it("renders record again and discard buttons", () => {
+    it("renders record again button", () => {
       const { container } = render(
         <RecorderControls {...defaultProps} status="stopped" duration={5.0} />
       );
       expect(container.querySelector('[aria-label="Record again"]')).toBeTruthy();
-      expect(container.querySelector('[aria-label="Discard recording"]')).toBeTruthy();
+      // Discard button moved to record page layout (destructive actions separate from controls)
     });
 
     it("shows recording complete text", () => {

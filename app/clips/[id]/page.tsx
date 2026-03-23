@@ -1,17 +1,22 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Share2, Clock, Music } from "lucide-react";
+import { ArrowLeft, Share2, Clock, Save, Loader2, Download, Pencil, X, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Waveform } from "@/components/audio/waveform";
 import { Player } from "@/components/audio/player";
+import { FilterRack } from "@/components/audio/filter-rack";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatTime, getRelativeTime } from "@/lib/format";
 import { FILTER_REGISTRY } from "@/lib/audio/filters";
+import { useAudioEngine } from "@/hooks/use-audio-engine";
+import { audioBufferToWav } from "@/lib/audio/utils";
 import type { Clip } from "@/lib/db/schema";
 
 const filterDisplayNames = Object.fromEntries(
@@ -20,28 +25,29 @@ const filterDisplayNames = Object.fromEntries(
 
 export default function ClipDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [clip, setClip] = useState<Clip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [is404, setIs404] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [audioError, setAudioError] = useState(false);
 
-  // Playback state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [looping, setLooping] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const engine = useAudioEngine();
+  const blobRef = useRef<Blob | null>(null);
+  const rawBlobRef = useRef<Blob | null>(null);
 
+  // Fetch clip data
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch(`/api/clips/${id}`);
         if (!res.ok) {
-          if (res.status === 404) {
-            setIs404(true);
-            setError("Clip not found");
-          } else {
-            setError("Failed to load clip");
-          }
+          if (res.status === 404) setIs404(true);
+          setError(res.status === 404 ? "Clip not found" : "Failed to load clip");
           return;
         }
         setClip(await res.json());
@@ -53,60 +59,108 @@ export default function ClipDetailPage() {
     })();
   }, [id]);
 
-  // Simple HTML Audio playback
+  // Fetch audio blobs for playback + editing
+  const clipId = clip?.id;
   useEffect(() => {
-    if (!clip) return;
-    const el = new Audio(`/api/clips/${clip.id}/audio`);
-    audioRef.current = el;
+    if (!clipId) return;
+    (async () => {
+      try {
+        const [audioRes, rawRes] = await Promise.all([
+          fetch(`/api/clips/${clipId}/audio`),
+          fetch(`/api/clips/${clipId}/raw`).catch(() => null),
+        ]);
+        if (!audioRes.ok) {
+          setAudioError(true);
+          return;
+        }
+        blobRef.current = await audioRes.blob();
+        if (rawRes?.ok) {
+          rawBlobRef.current = await rawRes.blob();
+        }
+      } catch {
+        setAudioError(true);
+      }
+    })();
+  }, [clipId]);
 
-    el.ontimeupdate = () => setCurrentTime(el.currentTime);
-    el.onended = () => {
-      setIsPlaying(false);
-      setCurrentTime(0);
-    };
-    el.onpause = () => setIsPlaying(false);
-    el.onplay = () => setIsPlaying(true);
-
-    return () => {
-      el.pause();
-      el.src = "";
-    };
-  }, [clip]);
-
-  const handlePlay = () => {
-    if (!audioRef.current) return;
-    audioRef.current.loop = looping;
-    audioRef.current.play().catch((e) => {
-      if (e.name !== "AbortError") console.warn("[ClipLab] Playback failed:", e);
-    });
-  };
-
-  const handleStop = () => {
-    if (!audioRef.current) return;
-    audioRef.current.pause();
+  const handlePlay = async () => {
+    // In edit mode, play from raw audio so filter toggles work correctly.
+    // In view mode, play the rendered (pre-filtered) audio.
+    const blob = editing && rawBlobRef.current ? rawBlobRef.current : blobRef.current;
+    if (!blob) return;
+    await engine.play(blob);
   };
 
   const handleSeek = (pos: number) => {
-    if (!audioRef.current || !clip) return;
-    audioRef.current.currentTime = pos * clip.duration;
-    setCurrentTime(audioRef.current.currentTime);
-  };
-
-  const handleToggleLoop = () => {
-    const next = !looping;
-    setLooping(next);
-    if (audioRef.current) audioRef.current.loop = next;
+    engine.seek(pos);
   };
 
   const handleShare = async () => {
-    const url = window.location.href;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(window.location.href);
       toast.success("Link copied!");
     } catch {
       toast.error("Could not copy link");
     }
   };
+
+  const handleDownload = () => {
+    if (!blobRef.current || !clip) return;
+    const url = URL.createObjectURL(blobRef.current);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${clip.name}.wav`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const saveClip = async (asCopy: boolean) => {
+    const sourceBlob = rawBlobRef.current || blobRef.current;
+    if (!sourceBlob || !clip) return;
+    setSaving(true);
+    try {
+      const rendered = await engine.renderWithFilters(sourceBlob);
+      const wavBlob = audioBufferToWav(rendered);
+      const name = editName.trim() || clip.name;
+
+      const formData = new FormData();
+      formData.append("audio", wavBlob, `${name}.wav`);
+      if (rawBlobRef.current) {
+        formData.append("raw", rawBlobRef.current, `${name}_raw.wav`);
+      }
+      formData.append("name", name);
+      formData.append("duration", String(rendered.duration));
+      const activeFilters = engine.filters
+        .filter((f) => f.enabled)
+        .map((f) => ({ id: f.definition.id, params: f.params }));
+      if (activeFilters.length > 0) {
+        formData.append("filterConfig", JSON.stringify(activeFilters));
+      }
+
+      if (asCopy) {
+        const res = await fetch("/api/clips", { method: "POST", body: formData });
+        if (!res.ok) throw new Error("Save failed");
+        const newClip = await res.json();
+        toast.success("Saved as new clip!");
+        router.push(`/clips/${newClip.id}`);
+      } else {
+        const res = await fetch(`/api/clips/${clip.id}`, { method: "PATCH", body: formData });
+        if (!res.ok) throw new Error("Save failed");
+        const updated = await res.json();
+        setClip(updated);
+        blobRef.current = wavBlob;
+        setEditing(false);
+        engine.resetAllFilters();
+        toast.success("Clip saved!");
+      }
+    } catch {
+      toast.error("Failed to save. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const progress = engine.duration > 0 ? engine.currentTime / engine.duration : 0;
 
   if (loading) {
     return (
@@ -154,7 +208,6 @@ export default function ClipDetailPage() {
     );
   }
 
-  const progress = clip.duration > 0 ? currentTime / clip.duration : 0;
   const peaks = clip.peaks as number[] | null;
   const filterConfig = clip.filterConfig as Array<{ id: string; params: Record<string, number> }> | null;
   const timeAgo = getRelativeTime(clip.createdAt);
@@ -170,6 +223,120 @@ export default function ClipDetailPage() {
         Back to clips
       </Link>
 
+      {/* Title + action bar — one row */}
+      <div className="mb-4 flex items-start justify-between gap-3">
+        {/* Left: title + metadata */}
+        <div className="flex-1 min-w-0">
+          {editing ? (
+            <input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="w-full rounded bg-transparent text-xl font-semibold text-[var(--text-primary)] border-b border-[var(--border-default)] pb-1 outline-none focus-visible:border-[var(--accent)] focus-visible:shadow-[var(--focus-ring)]"
+              aria-label="Clip name"
+            />
+          ) : (
+            <h1 className="text-xl font-semibold text-balance truncate">{clip.name}</h1>
+          )}
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+            <span className="flex items-center gap-1 tabular-nums">
+              <Clock className="h-3 w-3" aria-hidden="true" />
+              {formatTime(clip.duration)}
+            </span>
+            <span title={new Date(clip.createdAt).toLocaleString()}>
+              recorded {timeAgo}
+            </span>
+            {filterConfig && filterConfig.length > 0 &&
+              filterConfig.map((f) => (
+                <Badge key={f.id} variant="secondary" className="text-xs">
+                  {filterDisplayNames[f.id] || f.id}
+                </Badge>
+              ))
+            }
+          </div>
+        </div>
+
+        {/* Right: action buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+        {editing ? (
+          <>
+            <Button
+              variant="accent"
+              size="lg"
+              onClick={() => saveClip(false)}
+              disabled={saving}
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
+              {saving ? "Saving..." : "Save"}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => saveClip(true)}
+              disabled={saving}
+            >
+              <Copy className="h-4 w-4" aria-hidden="true" />
+              Save copy
+            </Button>
+            <button
+              onClick={() => setDiscardOpen(true)}
+              className="flex min-h-[44px] items-center gap-1.5 px-3 text-sm text-[var(--destructive)] hover:opacity-80 transition-all active:scale-95"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+              Discard
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => {
+                // Stop playback — source switches from rendered to raw
+                engine.stop();
+                setEditName(clip.name);
+                if (filterConfig) {
+                  engine.applyFilterConfig(filterConfig);
+                }
+                setEditing(true);
+              }}
+              className={cn(
+                "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
+                "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
+                "transition-colors hover:text-[var(--text-primary)] active:scale-95",
+                "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              )}
+            >
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              Edit
+            </button>
+            <button
+              onClick={handleShare}
+              className={cn(
+                "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
+                "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
+                "transition-colors hover:text-[var(--text-primary)] active:scale-95",
+                "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              )}
+              aria-label="Share — copy link"
+            >
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              Share
+            </button>
+            <button
+              onClick={handleDownload}
+              className={cn(
+                "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
+                "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
+                "transition-colors hover:text-[var(--text-primary)] active:scale-95",
+                "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              )}
+              aria-label="Download clip"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </>
+        )}
+        </div>
+      </div>
+
       {/* Waveform */}
       <div className="mb-4">
         <Waveform
@@ -184,56 +351,52 @@ export default function ClipDetailPage() {
       {/* Player */}
       <div className="mb-6">
         <Player
-          isPlaying={isPlaying}
-          looping={looping}
-          currentTime={currentTime}
-          duration={clip.duration}
+          isPlaying={engine.isPlaying}
+          looping={engine.looping}
+          currentTime={engine.currentTime}
+          duration={engine.duration || clip.duration}
           onPlay={handlePlay}
-          onStop={handleStop}
-          onToggleLoop={handleToggleLoop}
+          onStop={engine.stop}
+          onToggleLoop={engine.toggleLoop}
         />
       </div>
 
-      {/* Metadata */}
-      <div className="space-y-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-balance">{clip.name}</h1>
-            <div className="mt-1 flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-              <span className="flex items-center gap-1 tabular-nums">
-                <Clock className="h-3 w-3" aria-hidden="true" />
-                {formatTime(clip.duration)}
-              </span>
-              <span>{timeAgo}</span>
-            </div>
-          </div>
-          <button
-            onClick={handleShare}
-            className={cn(
-              "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
-              "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
-              "transition-colors hover:text-[var(--text-primary)] active:scale-95",
-              "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-            )}
-            aria-label="Share — copy link"
-          >
-            <Share2 className="h-4 w-4" aria-hidden="true" />
-            Share
-          </button>
+      {/* Audio load error */}
+      {audioError && (
+        <div className="mb-4 rounded-lg border border-[var(--destructive-surface)] bg-[var(--destructive-surface)] px-4 py-3 text-center text-sm text-[var(--destructive)]">
+          Could not load audio. Playback may not work.
         </div>
+      )}
 
-        {/* Filter badges */}
-        {filterConfig && filterConfig.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            <Music className="h-3.5 w-3.5 text-[var(--text-tertiary)] mt-0.5" aria-hidden="true" />
-            {filterConfig.map((f) => (
-              <Badge key={f.id} variant="secondary" className="text-xs">
-                {filterDisplayNames[f.id] || f.id}
-              </Badge>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Filter rack (editing mode) */}
+      {editing && (
+        <div className="mb-4">
+          <FilterRack
+            filters={engine.filters}
+            presets={engine.presets}
+            bypassed={engine.bypassed}
+            activePreset={engine.activePreset}
+            onToggleFilter={engine.toggleFilter}
+            onUpdateParam={engine.updateParam}
+            onResetFilter={engine.resetFilter}
+            onToggleBypass={engine.toggleBypass}
+            onApplyPreset={engine.applyPreset}
+          />
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title="Discard changes?"
+        description="Your filter and name changes will be lost."
+        confirmLabel="Discard"
+        onConfirm={() => {
+          engine.stop();
+          engine.resetAllFilters();
+          setEditing(false);
+        }}
+      />
     </main>
   );
 }

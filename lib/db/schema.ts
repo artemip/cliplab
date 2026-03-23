@@ -5,6 +5,8 @@ export const clips = sqliteTable("clips", {
   name: text("name").notNull(),
   duration: real("duration").notNull(),
   filename: text("filename").notNull(),
+  /** Raw (unfiltered) audio file — allows re-editing filters after save */
+  rawFilename: text("raw_filename"),
   peaks: text("peaks", { mode: "json" }).$type<number[]>(),
   filterConfig: text("filter_config", { mode: "json" }).$type<
     Array<{ id: string; params: Record<string, number> }>

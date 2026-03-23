@@ -50,6 +50,8 @@ export interface UseAudioEngineReturn {
   toggleMonitor: () => void;
   toggleLoop: () => void;
   applyPreset: (presetId: string) => void;
+  applyFilterConfig: (config: Array<{ id: string; params: Record<string, number> }>) => void;
+  resetAllFilters: () => void;
   play: (blob: Blob) => Promise<void>;
   stop: () => void;
   seek: (position: number) => void;
@@ -132,8 +134,13 @@ export function useAudioEngine(): UseAudioEngineReturn {
     let useA = true;
 
     const tick = () => {
-      const elapsed = engine.context.currentTime - startTimeRef.current + offsetRef.current;
-      setCurrentTime(elapsed);
+      let elapsed = engine.context.currentTime - startTimeRef.current + offsetRef.current;
+      // When looping, wrap elapsed time to stay within duration
+      const buf0 = audioBufferRef.current;
+      if (loopingRef.current && buf0 && buf0.duration > 0) {
+        elapsed = elapsed % buf0.duration;
+      }
+      setCurrentTime(Math.max(0, elapsed));
 
       const buf = useA ? dataArray : bufferB;
       analyser.getFloatTimeDomainData(buf);
@@ -188,26 +195,16 @@ export function useAudioEngine(): UseAudioEngineReturn {
     setIsPlaying(true);
   }
 
-  function restartPlayback() {
-    const buffer = audioBufferRef.current;
-    if (!buffer) return;
-    const engine = engineRef.current;
-    if (!engine) return;
-
-    const elapsed = engine.context.currentTime - startTimeRef.current + offsetRef.current;
-    startPlayback(buffer, elapsed);
-  }
-
   function rebuildWithFilters(filterStates: FilterState[]) {
     const engine = engineRef.current;
     if (!engine) return;
     const active = bypassedRef.current ? [] : filterStates
       .filter((f) => f.enabled)
       .map((f) => ({ definition: f.definition, params: f.params, enabled: true }));
+    // rebuildGraph disconnects + reconnects without stopping the source.
+    // AudioBufferSourceNode keeps producing audio even while disconnected,
+    // so no restart needed — the new filter chain picks up seamlessly.
     engine.rebuildGraph(active);
-    if (sourceRef.current && audioBufferRef.current) {
-      restartPlayback();
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -220,19 +217,15 @@ export function useAudioEngine(): UseAudioEngineReturn {
       const next = prev.map((f) =>
         f.definition.id === id ? { ...f, enabled: !f.enabled } : f
       );
-      // Rebuild graph with new filter state
+      // Rebuild graph — source keeps playing through the reconnect
       const engine = engineRef.current;
-      if (engine && audioBufferRef.current) {
+      if (engine) {
         const active = next.filter((f) => f.enabled).map((f) => ({
           definition: f.definition,
           params: f.params,
           enabled: true,
         }));
         engine.rebuildGraph(bypassedRef.current ? [] : active);
-        // Auto-replay if playing
-        if (sourceRef.current) {
-          restartPlayback();
-        }
       }
       return next;
     });
@@ -279,15 +272,13 @@ export function useAudioEngine(): UseAudioEngineReturn {
       const next = !prev;
       bypassedRef.current = next;
       // When bypassing, pass empty filters; when un-bypassing, pass current filters
+      // Rebuild graph — source keeps playing through the reconnect
       const engine = engineRef.current;
       if (engine) {
         const active = next ? [] : filtersRef.current
           .filter((f) => f.enabled)
           .map((f) => ({ definition: f.definition, params: f.params, enabled: true }));
         engine.rebuildGraph(active);
-        if (sourceRef.current && audioBufferRef.current) {
-          restartPlayback();
-        }
       }
       return next;
     });
@@ -297,6 +288,19 @@ export function useAudioEngine(): UseAudioEngineReturn {
     setMonitorEnabled((prev) => {
       const next = !prev;
       engineRef.current?.setMonitor(next);
+      return next;
+    });
+  }, []);
+
+  const resetAllFilters = useCallback(() => {
+    setActivePreset(null);
+    setFilters((prev) => {
+      const next = prev.map((f) => ({
+        ...f,
+        enabled: false,
+        params: getDefaultParams(f.definition),
+      }));
+      rebuildWithFilters(next);
       return next;
     });
   }, []);
@@ -334,6 +338,22 @@ export function useAudioEngine(): UseAudioEngineReturn {
     });
   }, []);
 
+  const applyFilterConfig = useCallback((config: Array<{ id: string; params: Record<string, number> }>) => {
+    setActivePreset(null);
+    setFilters((prev) => {
+      const configMap = new Map(config.map((c) => [c.id, c.params]));
+      const next = prev.map((f) => {
+        const params = configMap.get(f.definition.id);
+        if (params) {
+          return { ...f, enabled: true, params: { ...getDefaultParams(f.definition), ...params } };
+        }
+        return { ...f, enabled: false };
+      });
+      rebuildWithFilters(next);
+      return next;
+    });
+  }, []);
+
   const play = useCallback(async (blob: Blob) => {
     const engine = engineRef.current;
     if (!engine) return;
@@ -354,8 +374,6 @@ export function useAudioEngine(): UseAudioEngineReturn {
       const engine = engineRef.current;
       if (engine) {
         offsetRef.current = engine.context.currentTime - startTimeRef.current + offsetRef.current;
-        // Restore monitor to user's chosen state (play() forces it on)
-        engine.setMonitor(false);
       }
       const old = sourceRef.current;
       sourceRef.current = null;
@@ -398,10 +416,12 @@ export function useAudioEngine(): UseAudioEngineReturn {
     toggleFilter,
     updateParam,
     resetFilter,
+    resetAllFilters,
     toggleBypass,
     toggleMonitor,
     toggleLoop,
     applyPreset,
+    applyFilterConfig,
     play,
     stop,
     seek,

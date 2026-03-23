@@ -21,7 +21,9 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [playProgress, setPlayProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const progressRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -39,6 +41,7 @@ export default function FeedPage() {
 
   const handlePlay = (clipId: string) => {
     // Stop current
+    if (progressRafRef.current) cancelAnimationFrame(progressRafRef.current);
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = "";
@@ -46,22 +49,38 @@ export default function FeedPage() {
 
     if (playingId === clipId) {
       setPlayingId(null);
+      setPlayProgress(0);
       return;
     }
 
     const audio = new Audio(`/api/clips/${clipId}/audio`);
     audioRef.current = audio;
-    audio.onended = () => setPlayingId(null);
+
+    audio.onended = () => {
+      setPlayingId(null);
+      setPlayProgress(0);
+      if (progressRafRef.current) cancelAnimationFrame(progressRafRef.current);
+    };
+
+    // Smooth progress via rAF
+    const tick = () => {
+      if (audio.duration > 0) {
+        setPlayProgress(audio.currentTime / audio.duration);
+      }
+      progressRafRef.current = requestAnimationFrame(tick);
+    };
+
     audio.play().catch((e) => {
-      // AbortError is expected on rapid toggle; log others
       if (e.name !== "AbortError") console.warn("[ClipLab] Playback failed:", e);
     });
+    progressRafRef.current = requestAnimationFrame(tick);
     setPlayingId(clipId);
   };
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (progressRafRef.current) cancelAnimationFrame(progressRafRef.current);
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = "";
@@ -110,7 +129,7 @@ export default function FeedPage() {
 
       {/* Error */}
       {error && (
-        <div className="rounded-xl border border-[var(--destructive)]/20 bg-[var(--destructive-surface)] px-6 py-8 text-center">
+        <div className="rounded-xl border border-[var(--destructive-surface)] bg-[var(--destructive-surface)] px-6 py-8 text-center">
           <p className="text-sm text-[var(--destructive)]">{error}</p>
           <button
             onClick={() => window.location.reload()}
@@ -187,12 +206,20 @@ export default function FeedPage() {
 
                     {/* Mini waveform */}
                     <div className="mt-2">
-                      <Waveform mode="static" peaks={peaks} height={40} />
+                      <Waveform
+                        mode="static"
+                        peaks={peaks}
+                        progress={isThisPlaying ? playProgress : 0}
+                        height={40}
+                      />
                     </div>
 
                     {/* Metadata row */}
                     <div className="mt-2 flex items-center gap-2">
-                      <span className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]">
+                      <span
+                        className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]"
+                        title={new Date(clip.createdAt).toLocaleString()}
+                      >
                         <Clock className="h-3 w-3" aria-hidden="true" />
                         {getRelativeTime(clip.createdAt)}
                       </span>

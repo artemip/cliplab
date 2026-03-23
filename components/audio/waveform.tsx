@@ -58,8 +58,8 @@ function resolveColors(): Colors {
     active: g("--waveform-active", FALLBACK_COLORS.active),
     idle: g("--waveform-idle", FALLBACK_COLORS.idle),
     progress: g("--waveform-progress", FALLBACK_COLORS.progress),
-    glow: g("--waveform-glow", FALLBACK_COLORS.glow).replace(/^0 0 \d+px /, "") || FALLBACK_COLORS.glow,
-    hover: FALLBACK_COLORS.hover,
+    glow: g("--waveform-glow", FALLBACK_COLORS.glow),
+    hover: g("--waveform-hover", FALLBACK_COLORS.hover),
   };
 }
 
@@ -117,6 +117,13 @@ function drawStatic(
   const step = peaks.length / barCount;
   const px = progress * w;
 
+  // Normalize: find max peak and scale all bars to fill the height
+  let maxPeak = 0;
+  for (let i = 0; i < peaks.length; i++) {
+    if (peaks[i] > maxPeak) maxPeak = peaks[i];
+  }
+  const scale = maxPeak > 0.01 ? 1 / maxPeak : 1;
+
   ctx.clearRect(0, 0, w, h);
 
   // Pass 1: idle bars
@@ -125,7 +132,7 @@ function drawStatic(
     const x = i * (BAR_WIDTH + BAR_GAP);
     if (x + BAR_WIDTH / 2 > px) {
       const peakIdx = Math.min(Math.floor(i * step), peaks.length - 1);
-      const bh = Math.max(MIN_BAR_HEIGHT, peaks[peakIdx] * h * 0.85);
+      const bh = Math.max(MIN_BAR_HEIGHT, peaks[peakIdx] * scale * h * 0.85);
       ctx.beginPath();
       ctx.roundRect(x, (h - bh) / 2, BAR_WIDTH, bh, 1);
       ctx.fill();
@@ -138,21 +145,21 @@ function drawStatic(
     const x = i * (BAR_WIDTH + BAR_GAP);
     if (x + BAR_WIDTH / 2 <= px) {
       const peakIdx = Math.min(Math.floor(i * step), peaks.length - 1);
-      const bh = Math.max(MIN_BAR_HEIGHT, peaks[peakIdx] * h * 0.85);
+      const bh = Math.max(MIN_BAR_HEIGHT, peaks[peakIdx] * scale * h * 0.85);
       ctx.beginPath();
       ctx.roundRect(x, (h - bh) / 2, BAR_WIDTH, bh, 1);
       ctx.fill();
     }
   }
 
-  // Playhead with glow
+  // Playhead with glow — constrained to waveform area (not full height)
   if (progress > 0 && progress < 1) {
     const playX = Math.floor(px);
-    // Glow
+    const margin = h * 0.08;
     ctx.shadowColor = c.glow;
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = 4;
     ctx.fillStyle = c.progress;
-    ctx.fillRect(playX - 1, 0, 2, h);
+    ctx.fillRect(playX - 1, margin, 2, h - margin * 2);
     ctx.shadowBlur = 0;
     ctx.shadowColor = "transparent";
   }
@@ -161,7 +168,8 @@ function drawStatic(
   if (hoverPos !== null && hoverPos >= 0 && hoverPos <= 1) {
     const hx = Math.floor(hoverPos * w);
     ctx.fillStyle = c.hover;
-    ctx.fillRect(hx - 1, 0, 2, h);
+    const margin = h * 0.08;
+    ctx.fillRect(hx - 1, margin, 2, h - margin * 2);
   }
 }
 
