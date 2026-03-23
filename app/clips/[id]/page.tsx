@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Share2, Clock, Music, Save, Loader2, Download } from "lucide-react";
+import { ArrowLeft, Share2, Clock, Music, Save, Loader2, Download, Pencil, X, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Waveform } from "@/components/audio/waveform";
@@ -31,6 +31,7 @@ export default function ClipDetailPage() {
   const [is404, setIs404] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editName, setEditName] = useState("");
 
   const engine = useAudioEngine();
   const blobRef = useRef<Blob | null>(null);
@@ -202,56 +203,124 @@ export default function ClipDetailPage() {
         Back to clips
       </Link>
 
-      {/* Title + actions row */}
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="flex-1">
+      {/* Title row */}
+      <div className="mb-2">
+        {editing ? (
+          <input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className="w-full bg-transparent text-xl font-semibold text-[var(--text-primary)] border-b border-[var(--accent)] pb-1 outline-none"
+            aria-label="Clip name"
+          />
+        ) : (
           <h1 className="text-xl font-semibold text-balance">{clip.name}</h1>
-          <div className="mt-1 flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-            <span className="flex items-center gap-1 tabular-nums">
-              <Clock className="h-3 w-3" aria-hidden="true" />
-              {formatTime(clip.duration)}
-            </span>
-            <span>{timeAgo}</span>
-          </div>
-          {/* Filter badges */}
+        )}
+        <div className="mt-1 flex items-center gap-3 text-xs text-[var(--text-secondary)]">
+          <span className="flex items-center gap-1 tabular-nums">
+            <Clock className="h-3 w-3" aria-hidden="true" />
+            {formatTime(clip.duration)}
+          </span>
+          <span>{timeAgo}</span>
           {filterConfig && filterConfig.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <>
               {filterConfig.map((f) => (
                 <Badge key={f.id} variant="secondary" className="text-xs">
                   {filterDisplayNames[f.id] || f.id}
                 </Badge>
               ))}
-            </div>
+            </>
           )}
         </div>
-        {/* Share + Download together */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={handleShare}
-            className={cn(
-              "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
-              "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
-              "transition-colors hover:text-[var(--text-primary)] active:scale-95",
-              "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-            )}
-            aria-label="Share — copy link"
-          >
-            <Share2 className="h-4 w-4" aria-hidden="true" />
-            Share
-          </button>
-          <button
-            onClick={handleDownload}
-            className={cn(
-              "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
-              "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
-              "transition-colors hover:text-[var(--text-primary)] active:scale-95",
-              "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-            )}
-            aria-label="Download clip"
-          >
-            <Download className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
+      </div>
+
+      {/* Action bar — transforms between view and edit mode */}
+      <div className="mb-4 flex items-center gap-1.5">
+        {editing ? (
+          <>
+            <Button
+              variant="accent"
+              size="sm"
+              onClick={handleSaveEdited}
+              disabled={saving}
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Save className="h-3.5 w-3.5" aria-hidden="true" />}
+              {saving ? "Saving..." : "Save"}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleSaveEdited}
+              disabled={saving}
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              Save New
+            </Button>
+            <button
+              onClick={() => {
+                setEditing(false);
+                // Reset all filters
+                for (const f of engine.filters) {
+                  if (f.enabled) engine.toggleFilter(f.definition.id);
+                }
+              }}
+              className="ml-auto flex min-h-[44px] items-center gap-1.5 px-3 text-sm text-[var(--text-tertiary)] hover:text-[var(--destructive)] transition-colors active:scale-95"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+              Discard
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => {
+                setEditName(clip.name);
+                if (filterConfig) {
+                  for (const fc of filterConfig) {
+                    engine.toggleFilter(fc.id);
+                    for (const [key, val] of Object.entries(fc.params)) {
+                      engine.updateParam(fc.id, key, val);
+                    }
+                  }
+                }
+                setEditing(true);
+              }}
+              className={cn(
+                "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
+                "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
+                "transition-colors hover:text-[var(--text-primary)] active:scale-95",
+                "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              )}
+            >
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              Edit
+            </button>
+            <button
+              onClick={handleShare}
+              className={cn(
+                "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
+                "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
+                "transition-colors hover:text-[var(--text-primary)] active:scale-95",
+                "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              )}
+              aria-label="Share — copy link"
+            >
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              Share
+            </button>
+            <button
+              onClick={handleDownload}
+              className={cn(
+                "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm",
+                "bg-[var(--bg-interactive)] text-[var(--text-secondary)]",
+                "transition-colors hover:text-[var(--text-primary)] active:scale-95",
+                "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              )}
+              aria-label="Download clip"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Waveform */}
@@ -278,55 +347,9 @@ export default function ClipDetailPage() {
         />
       </div>
 
-      {/* Edit toggle */}
-      <div className="mb-4">
-        <button
-          onClick={() => {
-            if (!editing && filterConfig) {
-              // Pre-apply saved filter config when entering edit mode
-              for (const fc of filterConfig) {
-                engine.toggleFilter(fc.id);
-                for (const [key, val] of Object.entries(fc.params)) {
-                  engine.updateParam(fc.id, key, val);
-                }
-              }
-            }
-            setEditing(!editing);
-          }}
-          className={cn(
-            "text-sm font-medium transition-colors",
-            editing
-              ? "text-[var(--accent)] hover:text-[var(--accent-hover)]"
-              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          )}
-        >
-          {editing ? "Done editing" : "Edit →"}
-        </button>
-      </div>
-
-      {/* Filter rack + save controls (editing mode) */}
+      {/* Filter rack (editing mode) */}
       {editing && (
         <>
-          {/* Save controls at top of edit area */}
-          {hasActiveFilters && (
-            <div className="mb-4 flex gap-2">
-              <Button
-                variant="accent"
-                size="lg"
-                onClick={handleSaveEdited}
-                disabled={saving}
-                className="flex-1"
-              >
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Save className="h-4 w-4" aria-hidden="true" />
-                )}
-                {saving ? "Saving..." : "Save as new clip"}
-              </Button>
-            </div>
-          )}
-
           <div className="mb-4">
             <FilterRack
               filters={engine.filters}
