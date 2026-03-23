@@ -43,6 +43,7 @@ clips.get("/:id/raw", async (c) => {
     headers: {
       "Content-Length": String(data.byteLength),
       "Content-Type": "audio/wav",
+      "Cache-Control": "public, max-age=31536000, immutable",
     },
   });
 });

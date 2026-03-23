@@ -347,7 +347,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
         if (params) {
           return { ...f, enabled: true, params: { ...getDefaultParams(f.definition), ...params } };
         }
-        return f;
+        return { ...f, enabled: false };
       });
       rebuildWithFilters(next);
       return next;
