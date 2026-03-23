@@ -109,7 +109,7 @@ export default function FeedPage() {
           <p className="text-sm text-[var(--destructive)]">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-3 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="mt-3 min-h-[44px] px-3 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] active:scale-95 transition-all"
           >
             Try again
           </button>
@@ -170,7 +170,7 @@ export default function FeedPage() {
                   </button>
 
                   {/* Info */}
-                  <Link href={`/clips/${clip.id}`} className="flex-1 min-w-0">
+                  <Link href={`/clips/${clip.id}`} className="flex-1 min-w-0 transition-opacity hover:opacity-80">
                     <div className="flex items-center justify-between">
                       <h3 className="truncate text-sm font-medium text-[var(--text-primary)]">
                         {clip.name}

@@ -101,9 +101,15 @@ export default function ClipDetailPage() {
     return (
       <main className="mx-auto max-w-2xl px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <Skeleton className="mb-6 h-5 w-24" />
-        <Skeleton className="mb-4 h-[120px] w-full rounded-lg" />
-        <Skeleton className="mb-4 h-[52px] w-full rounded-lg" />
-        <Skeleton className="h-6 w-48" />
+        <Skeleton className="mb-4 h-[140px] w-full rounded-lg" />
+        <Skeleton className="mb-6 h-[52px] w-full rounded-lg" />
+        <div className="flex justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <Skeleton className="h-11 w-20 rounded-lg" />
+        </div>
       </main>
     );
   }
@@ -171,7 +177,7 @@ export default function ClipDetailPage() {
           <div>
             <h1 className="text-xl font-semibold text-balance">{clip.name}</h1>
             <div className="mt-1 flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 tabular-nums">
                 <Clock className="h-3 w-3" aria-hidden="true" />
                 {formatTime(clip.duration)}
               </span>

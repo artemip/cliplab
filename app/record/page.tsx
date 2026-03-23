@@ -216,9 +216,26 @@ export default function RecordPage() {
         />
       </div>
 
-      {/* Save clip (only when stopped) */}
+      {/* Filter rack (only when stopped — experiment before saving) */}
       {isStopped && (
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-6">
+          <FilterRack
+            filters={engine.filters}
+            presets={engine.presets}
+            bypassed={engine.bypassed}
+            activePreset={engine.activePreset}
+            onToggleFilter={engine.toggleFilter}
+            onUpdateParam={engine.updateParam}
+            onResetFilter={engine.resetFilter}
+            onToggleBypass={engine.toggleBypass}
+            onApplyPreset={engine.applyPreset}
+          />
+        </div>
+      )}
+
+      {/* Save clip (only when stopped — after filters are configured) */}
+      {isStopped && (
+        <div className="flex items-center gap-3">
           <Input
             value={clipName}
             onChange={(e) => setClipName(e.target.value)}
@@ -239,23 +256,6 @@ export default function RecordPage() {
             )}
             {uploading ? "Saving..." : "Save clip"}
           </Button>
-        </div>
-      )}
-
-      {/* Filter rack (only when stopped) */}
-      {isStopped && (
-        <div className="flex-1">
-          <FilterRack
-            filters={engine.filters}
-            presets={engine.presets}
-            bypassed={engine.bypassed}
-            activePreset={engine.activePreset}
-            onToggleFilter={engine.toggleFilter}
-            onUpdateParam={engine.updateParam}
-            onResetFilter={engine.resetFilter}
-            onToggleBypass={engine.toggleBypass}
-            onApplyPreset={engine.applyPreset}
-          />
         </div>
       )}
     </main>
