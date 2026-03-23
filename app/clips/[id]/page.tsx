@@ -203,69 +203,68 @@ export default function ClipDetailPage() {
         Back to clips
       </Link>
 
-      {/* Title row */}
-      <div className="mb-2">
-        {editing ? (
-          <input
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            className="w-full bg-transparent text-xl font-semibold text-[var(--text-primary)] border-b border-[var(--accent)] pb-1 outline-none"
-            aria-label="Clip name"
-          />
-        ) : (
-          <h1 className="text-xl font-semibold text-balance">{clip.name}</h1>
-        )}
-        <div className="mt-1 flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-          <span className="flex items-center gap-1 tabular-nums">
-            <Clock className="h-3 w-3" aria-hidden="true" />
-            {formatTime(clip.duration)}
-          </span>
-          <span>{timeAgo}</span>
-          {filterConfig && filterConfig.length > 0 && (
-            <>
-              {filterConfig.map((f) => (
+      {/* Title + action bar — one row */}
+      <div className="mb-4 flex items-start justify-between gap-3">
+        {/* Left: title + metadata */}
+        <div className="flex-1 min-w-0">
+          {editing ? (
+            <input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="w-full bg-transparent text-xl font-semibold text-[var(--text-primary)] border-b border-[var(--accent)] pb-1 outline-none"
+              aria-label="Clip name"
+            />
+          ) : (
+            <h1 className="text-xl font-semibold text-balance truncate">{clip.name}</h1>
+          )}
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+            <span className="flex items-center gap-1 tabular-nums">
+              <Clock className="h-3 w-3" aria-hidden="true" />
+              {formatTime(clip.duration)}
+            </span>
+            <span>{timeAgo}</span>
+            {filterConfig && filterConfig.length > 0 &&
+              filterConfig.map((f) => (
                 <Badge key={f.id} variant="secondary" className="text-xs">
                   {filterDisplayNames[f.id] || f.id}
                 </Badge>
-              ))}
-            </>
-          )}
+              ))
+            }
+          </div>
         </div>
-      </div>
 
-      {/* Action bar — transforms between view and edit mode */}
-      <div className="mb-4 flex items-center justify-end gap-1.5">
+        {/* Right: action buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
         {editing ? (
           <>
             <Button
               variant="accent"
-              size="sm"
+              size="lg"
               onClick={handleSaveEdited}
               disabled={saving}
             >
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Save className="h-3.5 w-3.5" aria-hidden="true" />}
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
               {saving ? "Saving..." : "Save"}
             </Button>
             <Button
-              variant="secondary"
-              size="sm"
+              variant="accent"
+              size="lg"
               onClick={handleSaveEdited}
               disabled={saving}
             >
-              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              <Copy className="h-4 w-4" aria-hidden="true" />
               Save New
             </Button>
             <button
               onClick={() => {
                 setEditing(false);
-                // Reset all filters
                 for (const f of engine.filters) {
                   if (f.enabled) engine.toggleFilter(f.definition.id);
                 }
               }}
-              className="ml-auto flex min-h-[44px] items-center gap-1.5 px-3 text-sm text-[var(--text-tertiary)] hover:text-[var(--destructive)] transition-colors active:scale-95"
+              className="flex min-h-[44px] items-center gap-1.5 px-3 text-sm text-[var(--destructive)] hover:text-[var(--destructive)]/80 transition-colors active:scale-95"
             >
-              <X className="h-3.5 w-3.5" aria-hidden="true" />
+              <X className="h-4 w-4" aria-hidden="true" />
               Discard
             </button>
           </>
@@ -321,6 +320,7 @@ export default function ClipDetailPage() {
             </button>
           </>
         )}
+        </div>
       </div>
 
       {/* Waveform */}
