@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createClip, listClips, getClip, getClipAudioPath, getClipRawAudioPath } from "@/lib/api/clips";
+import { createClip, updateClip, listClips, getClip, getClipAudioPath, getClipRawAudioPath } from "@/lib/api/clips";
 import { createClipSchema, clipListParamsSchema } from "@/lib/schemas/clips";
 import { readFile } from "fs/promises";
 
@@ -46,6 +46,35 @@ clips.get("/:id/raw", async (c) => {
       "Cache-Control": "public, max-age=31536000, immutable",
     },
   });
+});
+
+clips.patch("/:id", async (c) => {
+  const formData = await c.req.formData();
+  const audioFile = formData.get("audio");
+  const name = formData.get("name");
+  const duration = formData.get("duration");
+  const filterConfig = formData.get("filterConfig");
+
+  if (!(audioFile instanceof File)) {
+    return c.json({ error: "Audio file is required" }, 400);
+  }
+
+  const parsed = createClipSchema.parse({
+    name: name?.toString(),
+    duration: duration?.toString(),
+    filterConfig: filterConfig?.toString(),
+  });
+
+  const rawFile = formData.get("raw");
+  const clip = await updateClip(
+    c.req.param("id"),
+    audioFile,
+    parsed,
+    rawFile instanceof File ? rawFile : undefined
+  );
+
+  if (!clip) return c.json({ error: "Clip not found" }, 404);
+  return c.json(clip);
 });
 
 clips.post("/", async (c) => {

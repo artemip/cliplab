@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Share2, Clock, Save, Loader2, Download, Pencil, X } from "lucide-react";
+import { ArrowLeft, Share2, Clock, Save, Loader2, Download, Pencil, X, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Waveform } from "@/components/audio/waveform";
@@ -114,7 +114,7 @@ export default function ClipDetailPage() {
     URL.revokeObjectURL(url);
   };
 
-  const saveClip = async () => {
+  const saveClip = async (asCopy: boolean) => {
     const sourceBlob = rawBlobRef.current || blobRef.current;
     if (!sourceBlob || !clip) return;
     setSaving(true);
@@ -137,13 +137,22 @@ export default function ClipDetailPage() {
         formData.append("filterConfig", JSON.stringify(activeFilters));
       }
 
-      // Always creates a new clip (API is POST-only for now)
-      const res = await fetch("/api/clips", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Save failed");
-
-      const newClip = await res.json();
-      toast.success("Saved as new clip!");
-      router.push(`/clips/${newClip.id}`);
+      if (asCopy) {
+        const res = await fetch("/api/clips", { method: "POST", body: formData });
+        if (!res.ok) throw new Error("Save failed");
+        const newClip = await res.json();
+        toast.success("Saved as new clip!");
+        router.push(`/clips/${newClip.id}`);
+      } else {
+        const res = await fetch(`/api/clips/${clip.id}`, { method: "PATCH", body: formData });
+        if (!res.ok) throw new Error("Save failed");
+        const updated = await res.json();
+        setClip(updated);
+        blobRef.current = wavBlob;
+        setEditing(false);
+        engine.resetAllFilters();
+        toast.success("Clip saved!");
+      }
     } catch {
       toast.error("Failed to save. Try again.");
     } finally {
@@ -253,11 +262,20 @@ export default function ClipDetailPage() {
             <Button
               variant="accent"
               size="lg"
-              onClick={saveClip}
+              onClick={() => saveClip(false)}
               disabled={saving}
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
-              {saving ? "Saving..." : "Save copy"}
+              {saving ? "Saving..." : "Save"}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => saveClip(true)}
+              disabled={saving}
+            >
+              <Copy className="h-4 w-4" aria-hidden="true" />
+              Save copy
             </Button>
             <button
               onClick={() => setDiscardOpen(true)}

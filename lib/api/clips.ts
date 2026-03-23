@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { db } from "@/lib/db";
@@ -73,6 +73,50 @@ export async function getClipAudioPath(id: string) {
 
   const filepath = path.join(UPLOADS_DIR, clip.filename);
   return existsSync(filepath) ? filepath : null;
+}
+
+export async function updateClip(
+  id: string,
+  file: File,
+  input: CreateClipInput,
+  rawFile?: File
+) {
+  const existing = await getClip(id);
+  if (!existing) return null;
+
+  await mkdir(UPLOADS_DIR, { recursive: true });
+
+  // Overwrite rendered audio
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await writeFile(path.join(UPLOADS_DIR, existing.filename), buffer);
+
+  // Overwrite or create raw audio
+  let rawFilename = existing.rawFilename;
+  if (rawFile) {
+    rawFilename = rawFilename || `${id}_raw.wav`;
+    const rawBuffer = Buffer.from(await rawFile.arrayBuffer());
+    await writeFile(path.join(UPLOADS_DIR, rawFilename), rawBuffer);
+  } else if (rawFilename) {
+    // No raw file provided — remove stale raw audio
+    await unlink(path.join(UPLOADS_DIR, rawFilename)).catch(() => {});
+    rawFilename = null;
+  }
+
+  const peaks = generatePeaksFromWav(buffer);
+
+  const [clip] = await db
+    .update(clips)
+    .set({
+      name: input.name,
+      duration: input.duration,
+      rawFilename,
+      peaks,
+      filterConfig: input.filterConfig ?? null,
+    })
+    .where(eq(clips.id, id))
+    .returning();
+
+  return clip;
 }
 
 export async function getClipRawAudioPath(id: string) {

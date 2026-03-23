@@ -84,6 +84,10 @@ Three one-tap presets (Warm Vocal, Lo-Fi Radio, Ambient Space) configure multipl
 
 We don't enforce unique clip names. A user might record three takes of the same melody and name them all "Morning melody" — the content is clearly different on listen, and the short nanoid IDs in URLs distinguish them. Forcing unique names would add friction to the creative flow for zero user benefit. Names are identifiers for humans, not keys for machines.
 
+### Save vs Save copy on clip editing
+
+The clip detail page offers both "Save" (overwrites the current clip via PATCH) and "Save copy" (creates a new clip via POST). Save-in-place is what users expect when they tap "Edit" — if the only option were creating copies, the feed would accumulate ghost versions and "Edit" would feel dishonest. Save-copy exists for the fork-and-experiment workflow: try a different effect chain without losing the original. Both operations re-render from raw audio through OfflineAudioContext, so the stored WAV always reflects the current filter config.
+
 ### Two AudioEngine instances on the record page
 
 One engine handles live mic monitoring during recording (connected to the MediaStream). A separate engine (via `useAudioEngine` hook) handles playback with filters after recording stops. This avoids conflicts between the recording and playback audio graphs — they have different sources, different filter chains, and different destinations.
