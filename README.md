@@ -10,7 +10,7 @@ pnpm db:push
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Record something, apply some filters, save it, share the link.
+Open [http://localhost:3000](http://localhost:3000). Record a vocal, flip on some delay, hear it back in 20 seconds.
 
 ## What It Does
 
