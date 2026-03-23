@@ -222,7 +222,9 @@ export default function ClipDetailPage() {
               <Clock className="h-3 w-3" aria-hidden="true" />
               {formatTime(clip.duration)}
             </span>
-            <span>{timeAgo}</span>
+            <span title={new Date(clip.createdAt).toLocaleString()}>
+              recorded {timeAgo}
+            </span>
             {filterConfig && filterConfig.length > 0 &&
               filterConfig.map((f) => (
                 <Badge key={f.id} variant="secondary" className="text-xs">

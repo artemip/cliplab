@@ -216,7 +216,10 @@ export default function FeedPage() {
 
                     {/* Metadata row */}
                     <div className="mt-2 flex items-center gap-2">
-                      <span className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]">
+                      <span
+                        className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]"
+                        title={new Date(clip.createdAt).toLocaleString()}
+                      >
                         <Clock className="h-3 w-3" aria-hidden="true" />
                         {getRelativeTime(clip.createdAt)}
                       </span>
