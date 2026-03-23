@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Share2, Clock, Music, Save, Loader2, Download, Pencil, X, Copy } from "lucide-react";
+import { ArrowLeft, Share2, Clock, Save, Loader2, Download, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Waveform } from "@/components/audio/waveform";
@@ -12,6 +12,7 @@ import { FilterRack } from "@/components/audio/filter-rack";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatTime, getRelativeTime } from "@/lib/format";
 import { FILTER_REGISTRY } from "@/lib/audio/filters";
 import { useAudioEngine } from "@/hooks/use-audio-engine";
@@ -32,6 +33,8 @@ export default function ClipDetailPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editName, setEditName] = useState("");
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [audioError, setAudioError] = useState(false);
 
   const engine = useAudioEngine();
   const blobRef = useRef<Blob | null>(null);
@@ -70,7 +73,7 @@ export default function ClipDetailPage() {
           rawBlobRef.current = await rawRes.blob();
         }
       } catch {
-        // Fetch failed — playback may not work
+        setAudioError(true);
       }
     })();
   }, [clip]);
@@ -106,7 +109,7 @@ export default function ClipDetailPage() {
     URL.revokeObjectURL(url);
   };
 
-  const saveClip = async (asNew: boolean) => {
+  const saveClip = async () => {
     const sourceBlob = rawBlobRef.current || blobRef.current;
     if (!sourceBlob || !clip) return;
     setSaving(true);
@@ -134,7 +137,7 @@ export default function ClipDetailPage() {
       if (!res.ok) throw new Error("Save failed");
 
       const newClip = await res.json();
-      toast.success(asNew ? "Saved as new clip!" : "Clip saved!");
+      toast.success("Saved as new clip!");
       router.push(`/clips/${newClip.id}`);
     } catch {
       toast.error("Failed to save. Try again.");
@@ -214,7 +217,7 @@ export default function ClipDetailPage() {
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="w-full bg-transparent text-xl font-semibold text-[var(--text-primary)] border-b border-[var(--accent)] pb-1 outline-none"
+              className="w-full bg-transparent text-xl font-semibold text-[var(--text-primary)] border-b border-[var(--border-default)] pb-1 outline-none focus-visible:border-[var(--accent)]"
               aria-label="Clip name"
             />
           ) : (
@@ -245,30 +248,15 @@ export default function ClipDetailPage() {
             <Button
               variant="accent"
               size="lg"
-              onClick={() => saveClip(false)}
+              onClick={saveClip}
               disabled={saving}
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
-              {saving ? "Saving..." : "Save"}
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => saveClip(true)}
-              disabled={saving}
-            >
-              <Copy className="h-4 w-4" aria-hidden="true" />
-              Save New
+              {saving ? "Saving..." : "Save copy"}
             </Button>
             <button
-              onClick={() => {
-                engine.stop();
-                setEditing(false);
-                for (const f of engine.filters) {
-                  if (f.enabled) engine.toggleFilter(f.definition.id);
-                }
-              }}
-              className="flex min-h-[44px] items-center gap-1.5 px-3 text-sm text-[var(--destructive)] hover:text-[var(--destructive)]/80 transition-colors active:scale-95"
+              onClick={() => setDiscardOpen(true)}
+              className="flex min-h-[44px] items-center gap-1.5 px-3 text-sm text-[var(--destructive)] hover:opacity-80 transition-all active:scale-95"
             >
               <X className="h-4 w-4" aria-hidden="true" />
               Discard
@@ -355,24 +343,42 @@ export default function ClipDetailPage() {
         />
       </div>
 
+      {/* Audio load error */}
+      {audioError && (
+        <div className="mb-4 rounded-lg border border-[var(--destructive)]/20 bg-[var(--destructive-surface)] px-4 py-3 text-center text-sm text-[var(--destructive)]">
+          Could not load audio. Playback may not work.
+        </div>
+      )}
+
       {/* Filter rack (editing mode) */}
       {editing && (
-        <>
-          <div className="mb-4">
-            <FilterRack
-              filters={engine.filters}
-              presets={engine.presets}
-              bypassed={engine.bypassed}
-              activePreset={engine.activePreset}
-              onToggleFilter={engine.toggleFilter}
-              onUpdateParam={engine.updateParam}
-              onResetFilter={engine.resetFilter}
-              onToggleBypass={engine.toggleBypass}
-              onApplyPreset={engine.applyPreset}
-            />
-          </div>
-        </>
+        <div className="mb-4">
+          <FilterRack
+            filters={engine.filters}
+            presets={engine.presets}
+            bypassed={engine.bypassed}
+            activePreset={engine.activePreset}
+            onToggleFilter={engine.toggleFilter}
+            onUpdateParam={engine.updateParam}
+            onResetFilter={engine.resetFilter}
+            onToggleBypass={engine.toggleBypass}
+            onApplyPreset={engine.applyPreset}
+          />
+        </div>
       )}
+
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title="Discard changes?"
+        description="Your filter and name changes will be lost."
+        confirmLabel="Discard"
+        onConfirm={() => {
+          engine.stop();
+          engine.resetAllFilters();
+          setEditing(false);
+        }}
+      />
     </main>
   );
 }

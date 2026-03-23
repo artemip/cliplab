@@ -59,7 +59,7 @@ function resolveColors(): Colors {
     idle: g("--waveform-idle", FALLBACK_COLORS.idle),
     progress: g("--waveform-progress", FALLBACK_COLORS.progress),
     glow: g("--waveform-glow", FALLBACK_COLORS.glow).replace(/^0 0 \d+px /, "") || FALLBACK_COLORS.glow,
-    hover: FALLBACK_COLORS.hover,
+    hover: g("--waveform-hover", FALLBACK_COLORS.hover),
   };
 }
 

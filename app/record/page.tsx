@@ -13,6 +13,7 @@ import { Player } from "@/components/audio/player";
 import { FilterRack } from "@/components/audio/filter-rack";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AudioEngine } from "@/lib/audio/engine";
 import { generatePeaks, audioBufferToWav } from "@/lib/audio/utils";
 
@@ -25,6 +26,8 @@ export default function RecordPage() {
   const [clipName, setClipName] = useState("Clip 1");
   const [liveMonitor, setLiveMonitor] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   const clipCountRef = useRef(2); // Next clip name after "Clip 1"
   const rafRef = useRef<number | null>(null);
   const router = useRouter();
@@ -173,11 +176,7 @@ export default function RecordPage() {
       {/* Header — confirms if unsaved recording exists */}
       {isStopped ? (
         <button
-          onClick={() => {
-            if (window.confirm("Leave without saving? Your recording will be lost.")) {
-              router.push("/");
-            }
-          }}
+          onClick={() => setLeaveOpen(true)}
           className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -217,11 +216,7 @@ export default function RecordPage() {
             {uploading ? "Saving..." : "Save"}
           </Button>
           <button
-            onClick={() => {
-              if (window.confirm("Discard this recording?")) {
-                recorder.reset();
-              }
-            }}
+            onClick={() => setDiscardOpen(true)}
             className="flex min-h-[44px] items-center justify-center rounded-lg px-2 text-[var(--text-tertiary)] transition-colors hover:text-[var(--destructive)] active:scale-95"
             aria-label="Discard recording"
           >
@@ -298,6 +293,22 @@ export default function RecordPage() {
         </div>
       )}
 
+      <ConfirmDialog
+        open={leaveOpen}
+        onOpenChange={setLeaveOpen}
+        title="Leave without saving?"
+        description="Your recording will be lost."
+        confirmLabel="Leave"
+        onConfirm={() => router.push("/")}
+      />
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title="Discard recording?"
+        description="This will delete your current recording. This can't be undone."
+        confirmLabel="Discard"
+        onConfirm={() => recorder.reset()}
+      />
     </main>
   );
 }

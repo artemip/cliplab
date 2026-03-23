@@ -50,6 +50,7 @@ export interface UseAudioEngineReturn {
   toggleMonitor: () => void;
   toggleLoop: () => void;
   applyPreset: (presetId: string) => void;
+  resetAllFilters: () => void;
   play: (blob: Blob) => Promise<void>;
   stop: () => void;
   seek: (position: number) => void;
@@ -300,6 +301,19 @@ export function useAudioEngine(): UseAudioEngineReturn {
     });
   }, []);
 
+  const resetAllFilters = useCallback(() => {
+    setActivePreset(null);
+    setFilters((prev) => {
+      const next = prev.map((f) => ({
+        ...f,
+        enabled: false,
+        params: getDefaultParams(f.definition),
+      }));
+      rebuildWithFilters(next);
+      return next;
+    });
+  }, []);
+
   const toggleLoop = useCallback(() => {
     setLooping((prev) => {
       const next = !prev;
@@ -397,6 +411,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
     toggleFilter,
     updateParam,
     resetFilter,
+    resetAllFilters,
     toggleBypass,
     toggleMonitor,
     toggleLoop,
