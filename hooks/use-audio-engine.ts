@@ -225,19 +225,15 @@ export function useAudioEngine(): UseAudioEngineReturn {
       const next = prev.map((f) =>
         f.definition.id === id ? { ...f, enabled: !f.enabled } : f
       );
-      // Rebuild graph with new filter state
+      // Rebuild graph — source keeps playing through the reconnect
       const engine = engineRef.current;
-      if (engine && audioBufferRef.current) {
+      if (engine) {
         const active = next.filter((f) => f.enabled).map((f) => ({
           definition: f.definition,
           params: f.params,
           enabled: true,
         }));
         engine.rebuildGraph(bypassedRef.current ? [] : active);
-        // Auto-replay if playing
-        if (sourceRef.current) {
-          restartPlayback();
-        }
       }
       return next;
     });
@@ -284,15 +280,13 @@ export function useAudioEngine(): UseAudioEngineReturn {
       const next = !prev;
       bypassedRef.current = next;
       // When bypassing, pass empty filters; when un-bypassing, pass current filters
+      // Rebuild graph — source keeps playing through the reconnect
       const engine = engineRef.current;
       if (engine) {
         const active = next ? [] : filtersRef.current
           .filter((f) => f.enabled)
           .map((f) => ({ definition: f.definition, params: f.params, enabled: true }));
         engine.rebuildGraph(active);
-        if (sourceRef.current && audioBufferRef.current) {
-          restartPlayback();
-        }
       }
       return next;
     });
