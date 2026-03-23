@@ -162,6 +162,14 @@ export default function RecordPage() {
   const isLive = recorder.status === "recording" || recorder.status === "ready";
   const isStopped = recorder.status === "stopped";
 
+  // Warn before closing tab with unsaved recording
+  useEffect(() => {
+    if (!isStopped) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isStopped]);
+
   // Stop playback when leaving the stopped state (reset / re-record)
   useEffect(() => {
     if (!isStopped && engine.isPlaying) {

@@ -50,6 +50,7 @@ export interface UseAudioEngineReturn {
   toggleMonitor: () => void;
   toggleLoop: () => void;
   applyPreset: (presetId: string) => void;
+  applyFilterConfig: (config: Array<{ id: string; params: Record<string, number> }>) => void;
   resetAllFilters: () => void;
   play: (blob: Blob) => Promise<void>;
   stop: () => void;
@@ -347,6 +348,22 @@ export function useAudioEngine(): UseAudioEngineReturn {
     });
   }, []);
 
+  const applyFilterConfig = useCallback((config: Array<{ id: string; params: Record<string, number> }>) => {
+    setActivePreset(null);
+    setFilters((prev) => {
+      const configMap = new Map(config.map((c) => [c.id, c.params]));
+      const next = prev.map((f) => {
+        const params = configMap.get(f.definition.id);
+        if (params) {
+          return { ...f, enabled: true, params: { ...getDefaultParams(f.definition), ...params } };
+        }
+        return f;
+      });
+      rebuildWithFilters(next);
+      return next;
+    });
+  }, []);
+
   const play = useCallback(async (blob: Blob) => {
     const engine = engineRef.current;
     if (!engine) return;
@@ -367,8 +384,6 @@ export function useAudioEngine(): UseAudioEngineReturn {
       const engine = engineRef.current;
       if (engine) {
         offsetRef.current = engine.context.currentTime - startTimeRef.current + offsetRef.current;
-        // Restore monitor to user's chosen state (play() forces it on)
-        engine.setMonitor(false);
       }
       const old = sourceRef.current;
       sourceRef.current = null;
@@ -416,6 +431,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
     toggleMonitor,
     toggleLoop,
     applyPreset,
+    applyFilterConfig,
     play,
     stop,
     seek,

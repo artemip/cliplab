@@ -270,12 +270,7 @@ export default function ClipDetailPage() {
                 engine.stop();
                 setEditName(clip.name);
                 if (filterConfig) {
-                  for (const fc of filterConfig) {
-                    engine.toggleFilter(fc.id);
-                    for (const [key, val] of Object.entries(fc.params)) {
-                      engine.updateParam(fc.id, key, val);
-                    }
-                  }
+                  engine.applyFilterConfig(filterConfig);
                 }
                 setEditing(true);
               }}

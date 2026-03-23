@@ -83,7 +83,7 @@
   --waveform-active: #f59e0b;
   --waveform-idle: #334155;
   --waveform-progress: #fbbf24;
-  --waveform-glow: 0 0 12px rgba(245, 158, 11, 0.4);
+  --waveform-glow: rgba(245, 158, 11, 0.4);
   --waveform-hover: rgba(245, 158, 11, 0.3);
   --recording-pulse: #ef4444;
   --recording-hover: #f87171;
