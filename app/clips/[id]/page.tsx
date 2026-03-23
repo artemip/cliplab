@@ -11,13 +11,19 @@ import { Player } from "@/components/audio/player";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatTime, getRelativeTime } from "@/lib/format";
+import { FILTER_REGISTRY } from "@/lib/audio/filters";
 import type { Clip } from "@/lib/db/schema";
+
+const filterDisplayNames = Object.fromEntries(
+  FILTER_REGISTRY.map((f) => [f.id, f.name])
+);
 
 export default function ClipDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [clip, setClip] = useState<Clip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [is404, setIs404] = useState(false);
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -30,7 +36,12 @@ export default function ClipDetailPage() {
       try {
         const res = await fetch(`/api/clips/${id}`);
         if (!res.ok) {
-          setError(res.status === 404 ? "Clip not found" : "Failed to load clip");
+          if (res.status === 404) {
+            setIs404(true);
+            setError("Clip not found");
+          } else {
+            setError("Failed to load clip");
+          }
           return;
         }
         setClip(await res.json());
@@ -119,14 +130,26 @@ export default function ClipDetailPage() {
       <main className="mx-auto flex min-h-dvh max-w-2xl flex-col items-center justify-center px-4 text-center">
         <h1 className="text-xl font-semibold">{error || "Clip not found"}</h1>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          This clip may have been deleted or the link is incorrect.
+          {is404
+            ? "This clip may have been deleted or the link is incorrect."
+            : "Something went wrong loading this clip."}
         </p>
-        <Link
-          href="/"
-          className="mt-4 text-sm text-[var(--accent)] hover:text-[var(--accent-hover)]"
-        >
-          Back to clips
-        </Link>
+        <div className="mt-4 flex items-center gap-3">
+          {!is404 && (
+            <button
+              onClick={() => window.location.reload()}
+              className="min-h-[44px] px-3 text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] active:scale-95 transition-all"
+            >
+              Try again
+            </button>
+          )}
+          <Link
+            href="/"
+            className="min-h-[44px] flex items-center text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          >
+            Back to clips
+          </Link>
+        </div>
       </main>
     );
   }
@@ -205,7 +228,7 @@ export default function ClipDetailPage() {
             <Music className="h-3.5 w-3.5 text-[var(--text-tertiary)] mt-0.5" aria-hidden="true" />
             {filterConfig.map((f) => (
               <Badge key={f.id} variant="secondary" className="text-xs">
-                {f.id}
+                {filterDisplayNames[f.id] || f.id}
               </Badge>
             ))}
           </div>

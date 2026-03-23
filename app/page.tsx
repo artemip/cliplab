@@ -8,8 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Waveform } from "@/components/audio/waveform";
 import { formatTime, getRelativeTime } from "@/lib/format";
+import { FILTER_REGISTRY } from "@/lib/audio/filters";
 import { cn } from "@/lib/utils";
 import type { Clip } from "@/lib/db/schema";
+
+const filterDisplayNames = Object.fromEntries(
+  FILTER_REGISTRY.map((f) => [f.id, f.name])
+);
 
 export default function FeedPage() {
   const [clips, setClips] = useState<Clip[]>([]);
@@ -170,7 +175,7 @@ export default function FeedPage() {
                   </button>
 
                   {/* Info */}
-                  <Link href={`/clips/${clip.id}`} className="flex-1 min-w-0 transition-opacity hover:opacity-80">
+                  <Link href={`/clips/${clip.id}`} className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <h3 className="truncate text-sm font-medium text-[var(--text-primary)]">
                         {clip.name}
@@ -195,7 +200,7 @@ export default function FeedPage() {
                         <div className="flex gap-1">
                           {filterConfig.map((f) => (
                             <Badge key={f.id} variant="secondary" className="text-xs px-1.5 py-0">
-                              {f.id}
+                              {filterDisplayNames[f.id] || f.id}
                             </Badge>
                           ))}
                         </div>

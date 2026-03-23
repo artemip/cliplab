@@ -30,6 +30,8 @@ export function generatePeaksFromWav(
     const chunkId = buffer.toString("ascii", offset, offset + 4);
     const chunkSize = buffer.readUInt32LE(offset + 4);
 
+    if (chunkSize === 0) break; // Malformed chunk — prevent infinite loop
+
     if (chunkId === "fmt ") {
       channels = buffer.readUInt16LE(offset + 10);
       bitsPerSample = buffer.readUInt16LE(offset + 22);
