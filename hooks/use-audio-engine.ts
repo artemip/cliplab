@@ -132,8 +132,13 @@ export function useAudioEngine(): UseAudioEngineReturn {
     let useA = true;
 
     const tick = () => {
-      const elapsed = engine.context.currentTime - startTimeRef.current + offsetRef.current;
-      setCurrentTime(elapsed);
+      let elapsed = engine.context.currentTime - startTimeRef.current + offsetRef.current;
+      // When looping, wrap elapsed time to stay within duration
+      const buf0 = audioBufferRef.current;
+      if (loopingRef.current && buf0 && buf0.duration > 0) {
+        elapsed = elapsed % buf0.duration;
+      }
+      setCurrentTime(Math.max(0, elapsed));
 
       const buf = useA ? dataArray : bufferB;
       analyser.getFloatTimeDomainData(buf);
@@ -204,10 +209,10 @@ export function useAudioEngine(): UseAudioEngineReturn {
     const active = bypassedRef.current ? [] : filterStates
       .filter((f) => f.enabled)
       .map((f) => ({ definition: f.definition, params: f.params, enabled: true }));
+    // rebuildGraph disconnects + reconnects without stopping the source.
+    // AudioBufferSourceNode keeps producing audio even while disconnected,
+    // so no restart needed — the new filter chain picks up seamlessly.
     engine.rebuildGraph(active);
-    if (sourceRef.current && audioBufferRef.current) {
-      restartPlayback();
-    }
   }
 
   // ---------------------------------------------------------------------------

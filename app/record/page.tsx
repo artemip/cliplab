@@ -23,6 +23,7 @@ export default function RecordPage() {
   const [liveAnalyserData, setLiveAnalyserData] = useState<Float32Array | null>(null);
   const [recordedPeaks, setRecordedPeaks] = useState<number[] | null>(null);
   const [clipName, setClipName] = useState("Clip 1");
+  const [liveMonitor, setLiveMonitor] = useState(false);
   const [uploading, setUploading] = useState(false);
   const clipCountRef = useRef(2); // Next clip name after "Clip 1"
   const rafRef = useRef<number | null>(null);
@@ -211,8 +212,12 @@ export default function RecordPage() {
           onStart={recorder.startRecording}
           onStop={recorder.stopRecording}
           onReset={recorder.reset}
-          monitorEnabled={engine.monitorEnabled}
-          onToggleMonitor={engine.toggleMonitor}
+          monitorEnabled={liveMonitor}
+          onToggleMonitor={() => {
+            const next = !liveMonitor;
+            setLiveMonitor(next);
+            liveEngineRef.current?.setMonitor(next);
+          }}
         />
       </div>
 
