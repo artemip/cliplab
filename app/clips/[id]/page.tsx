@@ -106,21 +106,21 @@ export default function ClipDetailPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleSaveEdited = async () => {
-    // Use raw audio if available (re-render from unfiltered source)
+  const saveClip = async (asNew: boolean) => {
     const sourceBlob = rawBlobRef.current || blobRef.current;
     if (!sourceBlob || !clip) return;
     setSaving(true);
     try {
       const rendered = await engine.renderWithFilters(sourceBlob);
       const wavBlob = audioBufferToWav(rendered);
+      const name = editName.trim() || clip.name;
 
       const formData = new FormData();
-      formData.append("audio", wavBlob, `${clip.name}.wav`);
+      formData.append("audio", wavBlob, `${name}.wav`);
       if (rawBlobRef.current) {
-        formData.append("raw", rawBlobRef.current, `${clip.name}_raw.wav`);
+        formData.append("raw", rawBlobRef.current, `${name}_raw.wav`);
       }
-      formData.append("name", clip.name);
+      formData.append("name", name);
       formData.append("duration", String(rendered.duration));
       const activeFilters = engine.filters
         .filter((f) => f.enabled)
@@ -129,11 +129,12 @@ export default function ClipDetailPage() {
         formData.append("filterConfig", JSON.stringify(activeFilters));
       }
 
+      // Always creates a new clip (API is POST-only for now)
       const res = await fetch("/api/clips", { method: "POST", body: formData });
       if (!res.ok) throw new Error("Save failed");
 
       const newClip = await res.json();
-      toast.success("New version saved!");
+      toast.success(asNew ? "Saved as new clip!" : "Clip saved!");
       router.push(`/clips/${newClip.id}`);
     } catch {
       toast.error("Failed to save. Try again.");
@@ -193,7 +194,6 @@ export default function ClipDetailPage() {
   const peaks = clip.peaks as number[] | null;
   const filterConfig = clip.filterConfig as Array<{ id: string; params: Record<string, number> }> | null;
   const timeAgo = getRelativeTime(clip.createdAt);
-  const hasActiveFilters = engine.filters.some((f) => f.enabled);
 
   return (
     <main className="mx-auto max-w-2xl px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -245,7 +245,7 @@ export default function ClipDetailPage() {
             <Button
               variant="accent"
               size="lg"
-              onClick={handleSaveEdited}
+              onClick={() => saveClip(false)}
               disabled={saving}
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
@@ -254,7 +254,7 @@ export default function ClipDetailPage() {
             <Button
               variant="outline"
               size="lg"
-              onClick={handleSaveEdited}
+              onClick={() => saveClip(true)}
               disabled={saving}
             >
               <Copy className="h-4 w-4" aria-hidden="true" />
